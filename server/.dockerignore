@@ -2,3 +2,6 @@ bin
 scripts
 .env
 .idea
+http
+http/*
+.idea/*

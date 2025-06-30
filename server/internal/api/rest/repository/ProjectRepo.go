@@ -1,15 +1,17 @@
 package repository
 
-import "server/internal/api/rest/models"
+import (
+	models2 "server/internal/models"
+)
 
 type ProjectRepo interface {
-	CreateProject(log *models.Project) (*models.Project, error)
-	GetProjectByID(id string) (*models.Project, error)
-	GetAllProjects(page int, limit int) ([]*models.Project, error)
-	UpdateProject(project *models.Project) (*models.Project, error)
+	CreateProject(log *models2.Project) (*models2.Project, error)
+	GetProjectByID(id string) (*models2.Project, error)
+	GetAllProjects(page int, limit int) ([]*models2.Project, error)
+	UpdateProject(project *models2.Project) (*models2.Project, error)
 	DeleteProject(name string) error
-	GetProjectByName(name string) (*models.Project, error)
+	GetProjectByName(name string) (*models2.Project, error)
 	GetProjectsCount() (int64, error)
-	GetLogs(projectName string) ([]*models.Log, error)
-	GetRecentProjects(projectNames string) ([]*models.Project, error)
+	GetLogs(projectName string) ([]*models2.Log, error)
+	GetRecentProjects(projectNames string) ([]*models2.Project, error)
 }

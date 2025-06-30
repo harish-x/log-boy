@@ -2,7 +2,7 @@ package services
 
 import (
 	"log"
-	"server/internal/api/rest/models"
+	"server/internal/models"
 	"sync"
 )
 
