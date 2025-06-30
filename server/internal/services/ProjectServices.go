@@ -8,23 +8,32 @@ import (
 	"log"
 	"regexp"
 	"server/config"
-	"server/internal/api/rest/repository"
-	models2 "server/internal/models"
+	"server/internal/models"
+	"server/internal/repository"
 )
 
 type ProjectServices struct {
-	Repo   repository.ProjectRepo
-	Config config.AppConfig
+	Repo        repository.ProjectRepo
+	LogServices *LogServices
+	Config      config.AppConfig
 }
 
 // CreateProject creates a new project in the repository and returns the created project or an error if creation fails.
-func (p *ProjectServices) CreateProject(project *models2.Project) (*models2.Project, error) {
+func (p *ProjectServices) CreateProject(project *models.Project) (*models.Project, error) {
 
-	return p.Repo.CreateProject(project)
+	project, err := p.Repo.CreateProject(project)
+	if err != nil {
+		return nil, err
+	}
+	err = p.LogServices.CreateProjectIndex(project.Name)
+	if err != nil {
+		return nil, err
+	}
+	return project, nil
 }
 
 // GetAllProjects retrieves a paginated list of projects based on the provided page number and limit. It returns the projects or an error.
-func (p *ProjectServices) GetAllProjects(page int, limit int) ([]*models2.Project, error) {
+func (p *ProjectServices) GetAllProjects(page int, limit int) ([]*models.Project, error) {
 	projects, err := p.Repo.GetAllProjects(page, limit)
 	if err != nil {
 		return nil, err
@@ -33,7 +42,7 @@ func (p *ProjectServices) GetAllProjects(page int, limit int) ([]*models2.Projec
 }
 
 // ValidateProject validates the properties of a given project according to defined rules and returns an error if invalid.
-func ValidateProject(project *models2.Project) error {
+func ValidateProject(project *models.Project) error {
 	var namePattern = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`) // the project name must start with a lowercase letter or underscore, contain only lowercase letters, numbers, or underscores, and no special characters or spaces
 	switch {
 	case project.Name == "":
@@ -54,7 +63,7 @@ func ValidateProject(project *models2.Project) error {
 }
 
 // GetProjectByID retrieves a project by its unique identifier from the repository and returns the project or an error.
-func (p *ProjectServices) GetProjectByID(id string) (*models2.Project, error) {
+func (p *ProjectServices) GetProjectByID(id string) (*models.Project, error) {
 	project, err := p.Repo.GetProjectByID(id)
 	if err != nil {
 		return nil, err
@@ -63,7 +72,7 @@ func (p *ProjectServices) GetProjectByID(id string) (*models2.Project, error) {
 }
 
 // GetProjectByName retrieves a project from the repository by its name and returns the project or an error.
-func (p *ProjectServices) GetProjectByName(name string) (*models2.Project, error) {
+func (p *ProjectServices) GetProjectByName(name string) (*models.Project, error) {
 	log.Printf(" name from service %s", name)
 	project, err := p.Repo.GetProjectByName(name)
 	if err != nil {
@@ -94,12 +103,12 @@ func (p *ProjectServices) GetProjectsCount() (int64, error) {
 }
 
 // GetLogs retrieves the logs associated with the specified project name. It returns a slice of logs or an error if any occurs.
-func (p *ProjectServices) GetLogs(projectName string) ([]*models2.Log, error) {
+func (p *ProjectServices) GetLogs(projectName string) ([]*models.Log, error) {
 	return p.Repo.GetLogs(projectName)
 }
 
 // UpdateProject updates an existing project in the repository and returns the updated project or an error if the update fails.
-func (p *ProjectServices) UpdateProject(project *models2.Project) (*models2.Project, error) {
+func (p *ProjectServices) UpdateProject(project *models.Project) (*models.Project, error) {
 	updatedProject, err := p.Repo.UpdateProject(project)
 	if err != nil {
 		return nil, err
@@ -108,6 +117,6 @@ func (p *ProjectServices) UpdateProject(project *models2.Project) (*models2.Proj
 }
 
 // GetRecentProjects retrieves a list of recently accessed projects based on the provided project names and returns them or an error.
-func (p *ProjectServices) GetRecentProjects(projectNames string) ([]*models2.Project, error) {
+func (p *ProjectServices) GetRecentProjects(projectNames string) ([]*models.Project, error) {
 	return p.Repo.GetRecentProjects(projectNames)
 }

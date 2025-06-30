@@ -3,9 +3,9 @@ package resthandlers
 import (
 	"errors"
 	"server/internal/api/dto"
-	"server/internal/api/rest/repository"
-	"server/internal/api/rest/services"
 	"server/internal/models"
+	"server/internal/repository"
+	"server/internal/services"
 	"strconv"
 	"time"
 
@@ -19,9 +19,15 @@ type ProjectHandler struct {
 
 func SetupProjectRoutes(r *RestHandler) {
 	app := r.App
-	svc := services.ProjectServices{
-		Repo:   repository.NewProjectRepo(r.PostgresDb),
+
+	logSvc := services.LogServices{
+		Repo:   repository.NewLogRepo(r.ElasticSearch),
 		Config: r.Config,
+	}
+	svc := services.ProjectServices{
+		Repo:        repository.NewProjectRepo(r.PostgresDb),
+		LogServices: &logSvc,
+		Config:      r.Config,
 	}
 	handler := ProjectHandler{
 		svc: svc,

@@ -21,9 +21,14 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig) error {
 	if err != nil {
 		return err
 	}
+	elasticSearch, err := config.NewElasticSearchDB(cfg.ElasticSearch)
+	if err != nil {
+		return err
+	}
 	restHandler := &resthandlers.RestHandler{
-		App:        app,
-		PostgresDb: postgres,
+		App:           app,
+		PostgresDb:    postgres,
+		ElasticSearch: elasticSearch,
 	}
 	SetupRoutes(restHandler)
 	return app.Listen(cfg.ServerPort)
@@ -31,4 +36,5 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig) error {
 
 func SetupRoutes(h *resthandlers.RestHandler) {
 	resthandlers.SetupProjectRoutes(h)
+	resthandlers.SetupLogsRoutes(h)
 }
