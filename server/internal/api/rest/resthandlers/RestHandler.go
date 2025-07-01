@@ -13,4 +13,5 @@ type RestHandler struct {
 	PostgresDb    *gorm.DB
 	Config        config.AppConfig
 	ElasticSearch *elasticsearch.Client
+	SynapseDb     *gorm.DB
 }

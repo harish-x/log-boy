@@ -25,10 +25,12 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig) error {
 	if err != nil {
 		return err
 	}
+	synapse, err := config.NewSynapseSQL(cfg.SynapseDb, 10, 5, "1h")
 	restHandler := &resthandlers.RestHandler{
 		App:           app,
 		PostgresDb:    postgres,
 		ElasticSearch: elasticSearch,
+		SynapseDb:     synapse,
 	}
 	SetupRoutes(restHandler)
 	return app.Listen(cfg.ServerPort)
