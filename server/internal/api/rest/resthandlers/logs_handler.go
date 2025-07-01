@@ -28,6 +28,8 @@ func SetupLogsRoutes(r *RestHandler) {
 	api := app.Group("/api/v1/logs")
 	api.Get("/:project", handler.GetLogs)
 	api.Get("/:project/date", handler.GetLogsMinMaxDates)
+	api.Get("/:project/archives", handler.ListLogsFromArchive)
+	api.Get("/:project/archive", handler.GetLogsFromColdStorage)
 }
 
 func (h LogsHandler) GetLogs(c *fiber.Ctx) error {
@@ -119,5 +121,91 @@ func (h LogsHandler) GetLogsMinMaxDates(c *fiber.Ctx) error {
 	return SuccessResponse(c, fiber.StatusOK, "Logs retrieved successfully", fiber.Map{
 		"oldest": dates[0],
 		"latest": dates[1],
+	})
+}
+func (h LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+	exists, err := h.svc.CheckIfIndexExists(project)
+	if err != nil {
+		return InternalError(c, err)
+	}
+	if exists == false {
+		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
+	}
+	logs, err := h.svc.ListAllLogsFromStorage(project)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return SuccessResponse(c, fiber.StatusOK, "Logs retrieved successfully", fiber.Map{
+		"logs": logs,
+	})
+}
+
+
+func (h LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
+	project := c.Params("project")
+	fileName := c.Query("file")
+	if fileName == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "File name is required")
+	}
+	level := c.Query("level")
+	limit, err := strconv.Atoi(c.Query("limit", "100"))
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, "invalid limit or page")
+	}
+	offset, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, "invalid limit or page")
+	}
+	fromStr := c.Query("from", "")
+	toStr := c.Query("to", "")
+	sortByDate := c.Query("sortByDate", "ASC")
+	sortByDate = strings.ToUpper(sortByDate)
+	var sortEnum = []string{"ASC", "DESC"}
+	if ok := slices.Contains(sortEnum, sortByDate); !ok {
+		sortByDate = "ASC"
+	}
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "project name is required")
+	}
+	var levelEnum = []string{"info", "debug", "warn", "error", "silly", "http", "verbose", ""}
+	if ok := slices.Contains(levelEnum, level); !ok {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Invalid level")
+	}
+	fromFormatted, toFormatted, err := h.svc.FormateFilterDateIfExists(fromStr, toStr)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	}
+	filter := &dto.LogFilter{
+		Project:    project,
+		Level:      level,
+		Limit:      limit,
+		Offset:     offset,
+		From:       fromFormatted,
+		To:         toFormatted,
+		SortByDate: sortByDate,
+	}
+
+	exists, err := h.svc.CheckIfIndexExists(project)
+	if err != nil {
+		return InternalError(c, err)
+	}
+	if exists == false {
+		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
+	}
+	if archivedLogs, err := h.svc.ListAllLogsFromStorage(project); err != nil || !slices.Contains(archivedLogs, fileName) {
+		return ErrorMessage(c, fiber.StatusNotFound, "File not found")
+	}
+
+	logs, totalCounts, err := h.svc.GetLogsFromArchive(project, fileName, filter)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return SuccessResponse(c, fiber.StatusOK, "Logs retrieved successfully", fiber.Map{
+		"total": totalCounts,
+		"logs":  logs,
 	})
 }

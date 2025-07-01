@@ -21,7 +21,7 @@ func SetupProjectRoutes(r *RestHandler) {
 	app := r.App
 
 	logSvc := services.LogServices{
-		Repo:   repository.NewLogRepo(r.ElasticSearch),
+		Repo:   repository.NewLogRepo(r.ElasticSearch,r.SynapseDb),
 		Config: r.Config,
 	}
 	svc := services.ProjectServices{
