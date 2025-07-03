@@ -1,0 +1,28 @@
+{
+  "type": "record",
+  "name": "Log",
+  "namespace": "com.log_boy.logs",
+  "fields": [
+    { "name": "serviceName", "type": "string" },
+    {
+      "name": "buildDetails",
+      "type": {
+        "type": "record",
+        "name": "BuildDetails",
+        "fields": [
+          { "name": "nodeVersion", "type": "string" },
+          { "name": "appVersion", "type": "string" }
+        ]
+      }
+    },
+    { "name": "level", "type": "string" },
+    { "name": "message", "type": "string" },
+    { "name": "stack", "type": "string" },
+    { "name": "requestId", "type": "string" },
+    { "name": "requestUrl", "type": "string" },
+    { "name": "requestMethod", "type": "string" },
+    { "name": "userAgent", "type": "string" },
+    { "name": "remoteIp", "type": "string" },
+    { "name": "timestamp", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}

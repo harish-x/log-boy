@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"gRPC-gateway/config"
 	"gRPC-gateway/internal/server"
 	"log"
 	"os"
@@ -13,9 +14,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errChan := make(chan error, 1)
+	cfg, err := config.SetupEnv()
+	if err != nil {
+		errChan <- err
+	}
+
+	producer, protoSerializer, err := config.SetupKafka(cfg)
 
 	go func() {
-		if err := server.StartNewgRPCServer(ctx); err != nil {
+		if err := server.StartNewgRPCServer(ctx, cfg, &server.Kfk{Producer: producer, ProtoSerializer: protoSerializer}); err != nil {
 			errChan <- err
 		}
 	}()
