@@ -8,14 +8,13 @@ import (
 	"log"
 	"net"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	gokfkprotobuf "github.com/djedjethai/gokfk-regent/serde/protobuf"
+	"github.com/IBM/sarama"
 	"google.golang.org/grpc"
 )
 
 type Kfk struct {
-	Producer        *kafka.Producer
-	ProtoSerializer *gokfkprotobuf.Serializer
+	Producer        sarama.SyncProducer
+	ProtoSerializer *config.ProtobufSerializer
 }
 
 func StartNewgRPCServer(ctx context.Context, cfg *config.AppConfig, kfk *Kfk) error {

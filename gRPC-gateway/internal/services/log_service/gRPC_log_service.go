@@ -1,12 +1,12 @@
 package log_service
 
 import (
+	"gRPC-gateway/config"
 	protogen "gRPC-gateway/internal/services/genproto/logs"
 	"io"
 	"log"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	gokfkprotobuf "github.com/djedjethai/gokfk-regent/serde/protobuf"
+	"github.com/IBM/sarama"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -15,11 +15,11 @@ import (
 
 type LogServiceServer struct {
 	protogen.UnimplementedLogServiceServer
-	producer        *kafka.Producer
-	protoSerializer *gokfkprotobuf.Serializer
+	producer        sarama.SyncProducer
+	protoSerializer *config.ProtobufSerializer
 }
 
-func NewLogServiceServer(kafka *kafka.Producer, protoSerializer *gokfkprotobuf.Serializer) *LogServiceServer {
+func NewLogServiceServer(kafka sarama.SyncProducer, protoSerializer *config.ProtobufSerializer) *LogServiceServer {
 	return &LogServiceServer{
 		protogen.UnimplementedLogServiceServer{},
 		kafka,
@@ -29,20 +29,6 @@ func NewLogServiceServer(kafka *kafka.Producer, protoSerializer *gokfkprotobuf.S
 
 func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[protogen.Log, protogen.Response]) error {
 	log.Println("New client stream connected")
-	go func() {
-		for e := range s.producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					log.Printf("Delivery failed: %v\n", ev.TopicPartition)
-				} else {
-					log.Printf("Delivered message to topic %s [%d] at offset %v\n",
-						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
-				}
-			}
-		}
-	}()
-
 	for {
 		logMessage, err := stream.Recv()
 		if err != nil {
@@ -69,19 +55,27 @@ func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[p
 			logMessage.Timestamp = timestamppb.Now()
 		}
 
-		// The Serialize method should be identical
+		// Serialize protobuf message
 		kafkaValue, err := s.protoSerializer.Serialize(topic, logMessage)
 		if err != nil {
 			log.Printf("Failed to serialize protobuf message for topic %s: %v", topic, err)
 			continue
 		}
 
-		err = s.producer.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          kafkaValue,
-		}, nil)
+		// Create Sarama producer message
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(kafkaValue),
+		}
+
+		// Send message synchronously
+		partition, offset, err := s.producer.SendMessage(msg)
 		if err != nil {
 			log.Printf("Failed to produce message to Kafka for topic %s: %v", topic, err)
+			continue
 		}
+
+		log.Printf("Delivered message to topic %s [%d] at offset %v\n",
+			topic, partition, offset)
 	}
 }
