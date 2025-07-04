@@ -14,20 +14,18 @@ type ProtobufSerializer struct {
 	client *srclient.SchemaRegistryClient
 }
 
-// NewProtobufSerializer creates a new serializer instance.
 func NewProtobufSerializer(client *srclient.SchemaRegistryClient) *ProtobufSerializer {
 	return &ProtobufSerializer{client: client}
 }
 
 // Serialize encodes a protobuf message using the Confluent wire format.
-// It prepends the message with a magic byte (0x0) and the 4-byte schema ID.
 func (s *ProtobufSerializer) Serialize(topic string, message proto.Message) ([]byte, error) {
 
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("ProtobufSerializer or its client is not initialized")
 	}
 
-	subject := topic + "-value"
+	subject := "Logs-value"
 	schema, err := s.client.GetLatestSchema(subject)
 	if err != nil {
 
