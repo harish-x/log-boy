@@ -17,4 +17,4 @@ CreateKafkaLogSchema:
 	@echo "Creating schema on kafka schema registry"
 	curl -X POST http://localhost:8081/subjects/Logs-value/versions \
 		-H "Content-Type: application/vnd.schemaregistry.v1+json" \
-		-d "{\"schemaType\":\"PROTOBUF\",\"schema\":\"syntax = \\\"proto3\\\";\\n\\nimport \\\"google/protobuf/timestamp.proto\\\";\\n\\nmessage BuildDetails {\\n  string nodeVersion = 1;\\n  string appVersion = 2;\\n}\\n\\nmessage Log {\\n  string serviceName = 1;\\n  BuildDetails buildDetails = 2;\\n  string level = 3;\\n  string message = 4;\\n  string stack = 5;\\n  string requestId = 6;\\n  string requestUrl = 7;\\n  string requestMethod = 8;\\n  string userAgent = 9;\\n  string remoteIp = 10;\\n  google.protobuf.Timestamp timestamp = 11;\\n}\"}"
+		-d @logs.proto.schema.json

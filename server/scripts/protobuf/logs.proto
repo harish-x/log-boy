@@ -1,6 +1,9 @@
 syntax = "proto3";
 package logboy;
 
+option go_package = "server/protogen";
+
+import "google/protobuf/timestamp.proto";
 
 message BuildDetails {
   string nodeVersion = 1;

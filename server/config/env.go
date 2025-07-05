@@ -16,6 +16,8 @@ type AppConfig struct {
 	AzureStorageAccountName string
 	ColdStorageContainer    string
 	AzureStorageKey         string
+	KafkaBrokers            string
+	SchemaRegistryURL       string
 }
 
 func SetupEnv() (AppConfig, error) {
@@ -33,6 +35,8 @@ func SetupEnv() (AppConfig, error) {
 		AzureStorageAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
 		ColdStorageContainer:    os.Getenv("COLD_STORAGE_CONTAINER"),
 		AzureStorageKey:         os.Getenv("AZURE_STORAGE_KEY"),
+		KafkaBrokers:            os.Getenv("KAFKA_BROKERS"),
+		SchemaRegistryURL:       os.Getenv("SCHEMA_REGISTRY_URL"),
 	}
 	return config, nil
 }
