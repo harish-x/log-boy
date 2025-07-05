@@ -1,0 +1,22 @@
+syntax = "proto3";
+package logboy;
+
+
+message BuildDetails {
+  string nodeVersion = 1;
+  string appVersion = 2;
+}
+
+message Log {
+  string serviceName = 1;
+  BuildDetails buildDetails = 2;
+  string level = 3;
+  string message = 4;
+  string stack = 5;
+  string requestId = 6;
+  string requestUrl = 7;
+  string requestMethod = 8;
+  string userAgent = 9;
+  string remoteIp = 10;
+  google.protobuf.Timestamp timestamp = 11;
+}
