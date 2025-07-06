@@ -16,38 +16,36 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Redundancy is fine, ensures cancellation on unexpected exits.
+	defer cancel()
 
-	// Use a WaitGroup to wait for all goroutines to finish.
 	var wg sync.WaitGroup
 
 	cfg, err := config.SetupEnv()
 	if err != nil {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
+	elasticSearch, err := config.NewElasticSearchDB(cfg.ElasticSearch)
+	if err != nil {
+		log.Fatalf("Failed to load env variables: %v", err)
+	}
 
-	// Channel to receive errors from goroutines.
-	// Buffer size should match the number of goroutines that can fail.
 	errChan := make(chan error, 2)
 
-	// --- Start REST Server Goroutine ---
 	wg.Add(1)
 	go func() {
-		defer wg.Done() // Signal that this goroutine has finished.
+		defer wg.Done()
 		log.Println("REST server starting...")
-		// StartRestServer should return an error when the context is canceled.
-		if err := rest.StartRestServer(ctx, cfg); err != nil {
+		if err := rest.StartRestServer(ctx, cfg, elasticSearch); err != nil {
 			errChan <- fmt.Errorf("REST server error: %w", err)
 		}
 	}()
 
-	// --- Start Kafka Consumer Goroutine ---
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Println("Kafka consumer starting...")
 
-		processor := services.NewDefaultLogProcessor()
+		processor := services.NewDefaultLogProcessor(elasticSearch)
 		topics := []string{"project_1"}
 
 		consumerService, err := services.NewKafkaConsumerService(&cfg, topics, processor)

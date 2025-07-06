@@ -156,10 +156,8 @@ func (l *LogES) CreateProjectIndex(projectName string) error {
 			return fmt.Errorf("failed to parse error response: %w", err)
 		}
 
-		// Check if it's a "resource_already_exists_exception" which is fine
 		if errorType, ok := errorResponse["error"].(map[string]interface{})["type"].(string); ok {
 			if errorType == "resource_already_exists_exception" {
-				// Index was created by another process, which is fine
 				log.Print("Index was created by another process, which is fine")
 				return nil
 			}
@@ -386,11 +384,6 @@ func (l *LogES) BulkInsertLogs(logs []*models.Log) error {
 	panic("implement me")
 }
 
-func (l *LogES) GetProjectByName(name string) (*models.Project, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (l *LogES) GetLogsAvailabilities(projectName string) ([]string, error) {
 	var dates []string
 
@@ -542,7 +535,7 @@ FROM OPENROWSET(
 	l.synapse.Raw(totalCountQuery).Scan(&totalCount)
 
 	query := fmt.Sprintf(`WITH ParsedLogs AS (
-		SELECT 
+		SELECT
 			JSON_VALUE(jsonContent, '$.service_name') AS serviceName,
 			JSON_VALUE(jsonContent, '$.build_details.nodeVersion') AS nodeVersion,
 			JSON_VALUE(jsonContent, '$.build_details.appVersion') AS appVersion,
@@ -569,11 +562,11 @@ FROM OPENROWSET(
 		SELECT *,
 			   ROW_NUMBER() OVER (ORDER BY timestamp DESC) as RowNum
 		FROM ParsedLogs
-		WHERE %s 
+		WHERE %s
 	)
 	SELECT serviceName, level, message, nodeVersion, appVersion, requestUrl, requestId, requestMethod, stack, ipAddress, timestamp
 	FROM FilteredLogs
-	WHERE RowNum BETWEEN %d AND %d 
+	WHERE RowNum BETWEEN %d AND %d
 	ORDER BY timestamp %s`, ProjectName, fileName, whereCondition, offset, filters.Limit, filters.SortByDate)
 	err := l.synapse.Raw(query, args...).Scan(&lg).Error
 

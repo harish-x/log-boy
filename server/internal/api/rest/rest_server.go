@@ -5,11 +5,12 @@ import (
 	"server/config"
 	"server/internal/api/rest/resthandlers"
 
+	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func StartRestServer(ctx context.Context, cfg config.AppConfig) error {
+func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client) error {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  "http://localhost:5173",
@@ -21,10 +22,7 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig) error {
 	if err != nil {
 		return err
 	}
-	elasticSearch, err := config.NewElasticSearchDB(cfg.ElasticSearch)
-	if err != nil {
-		return err
-	}
+
 	synapse, err := config.NewSynapseSQL(cfg.SynapseDb, 10, 5, "1h")
 	restHandler := &resthandlers.RestHandler{
 		App:           app,
