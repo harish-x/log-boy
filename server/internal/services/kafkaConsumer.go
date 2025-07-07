@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -200,10 +201,13 @@ func (sb *ServiceBatch) addDocument(doc LogDocument, batchSize int, flushInterva
 		sb.flushTimer.Stop()
 	}
 	sb.flushTimer = time.AfterFunc(flushInterval, func() {
-		sb.flushBatch(client)
+		err := sb.flushBatch(client)
+		if err != nil {
+			return
+		}
 	})
 
-	// Flush if batch is full
+	// Flush if the batch is full
 	if len(sb.buffer) >= batchSize {
 		return sb.flushBatch(client)
 	}
@@ -248,7 +252,12 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 	if err != nil {
 		return fmt.Errorf("bulk request failed for service %s: %w", sb.serviceName, err)
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(res.Body)
 
 	if res.IsError() {
 		return fmt.Errorf("bulk request returned error for service %s: %s", sb.serviceName, res.String())
@@ -262,7 +271,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 	return nil
 }
 
-// Force flush all service batches
+// FlushAll Force flush all service batches
 func (p *DefaultLogProcessor) FlushAll() error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()

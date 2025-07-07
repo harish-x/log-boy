@@ -9,6 +9,7 @@ import (
 	"server/config"
 	"server/internal/api/rest"
 	"server/internal/services"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -28,14 +29,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
+	brokers := strings.Split(cfg.KafkaBrokers, ",")
 
 	errChan := make(chan error, 2)
+	ktm, err := config.NewKafkaTopicManager(brokers)
+	defer func(ktm *config.KafkaTopicManager) {
+		err := ktm.Close()
+		if err != nil {
+			errChan <- fmt.Errorf("failed to close kafka topic manager : %v", err)
+		}
+	}(ktm)
+	if err != nil {
+		errChan <- fmt.Errorf("failed to Start kafka topic manager : %v", err)
+	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Println("REST server starting...")
-		if err := rest.StartRestServer(ctx, cfg, elasticSearch); err != nil {
+		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm); err != nil {
 			errChan <- fmt.Errorf("REST server error: %w", err)
 		}
 	}()
@@ -46,7 +58,11 @@ func main() {
 		log.Println("Kafka consumer starting...")
 
 		processor := services.NewDefaultLogProcessor(elasticSearch)
-		topics := []string{"project_1"}
+		topics, err := ktm.GetTopicsWithPrefix("logs-")
+		if err != nil {
+			errChan <- fmt.Errorf("failed to get topics: %w", err)
+			return
+		}
 
 		consumerService, err := services.NewKafkaConsumerService(&cfg, topics, processor)
 		if err != nil {

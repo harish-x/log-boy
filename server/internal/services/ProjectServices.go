@@ -16,6 +16,7 @@ type ProjectServices struct {
 	Repo        repository.ProjectRepo
 	LogServices *LogServices
 	Config      config.AppConfig
+	Ktm         *config.KafkaTopicManager
 }
 
 // CreateProject creates a new project in the repository and returns the created project or an error if creation fails.
@@ -26,6 +27,10 @@ func (p *ProjectServices) CreateProject(project *models.Project) (*models.Projec
 		return nil, err
 	}
 	err = p.LogServices.CreateProjectIndex(project.Name)
+	if err != nil {
+		return nil, err
+	}
+	err = p.Ktm.CreateProjectTopic(project.Name)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"log"
 	"server/config"
 	"server/internal/api/rest/resthandlers"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client) error {
+func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager) error {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  "http://localhost:5173",
@@ -24,13 +25,32 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 	}
 
 	synapse, err := config.NewSynapseSQL(cfg.SynapseDb, 10, 5, "1h")
+	if err != nil {
+		return err
+	}
+
 	restHandler := &resthandlers.RestHandler{
 		App:           app,
 		PostgresDb:    postgres,
 		ElasticSearch: elasticSearch,
 		SynapseDb:     synapse,
+		Config:        cfg,
+		Ktm:           ktm,
 	}
 	SetupRoutes(restHandler)
+	go func() {
+		<-ctx.Done()
+		log.Println("Shutting down gRPC server...")
+		err := ktm.Close()
+		if err != nil {
+			return
+		}
+		err = app.Shutdown()
+		if err != nil {
+			return
+		}
+
+	}()
 	return app.Listen(cfg.ServerPort)
 }
 

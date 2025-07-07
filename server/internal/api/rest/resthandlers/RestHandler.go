@@ -14,4 +14,5 @@ type RestHandler struct {
 	Config        config.AppConfig
 	ElasticSearch *elasticsearch.Client
 	SynapseDb     *gorm.DB
+	Ktm           *config.KafkaTopicManager
 }
