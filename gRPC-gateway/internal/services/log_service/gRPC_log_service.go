@@ -50,6 +50,8 @@ func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[p
 			log.Println("Received log with empty serviceName, skipping Kafka production.")
 			continue
 		}
+		topic = "logs-" + topic
+		log.Print("Producing log message to Kafka: ", logMessage)
 
 		if logMessage.Timestamp == nil {
 			logMessage.Timestamp = timestamppb.Now()
