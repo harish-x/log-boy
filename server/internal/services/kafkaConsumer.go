@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -319,10 +320,9 @@ func (p *DefaultLogProcessor) Close() error {
 type KafkaConsumerService struct {
 	handler         *ConsumerGroupHandler
 	consumerManager *config.KafkaConsumerManager
-	topics          []string
 }
 
-func NewKafkaConsumerService(cfg *config.AppConfig, topics []string, processor LogProcessor) (*KafkaConsumerService, error) {
+func NewKafkaConsumerService(cfg *config.AppConfig, processor LogProcessor) (*KafkaConsumerService, error) {
 	consumerGroup, deserializer, err := config.SetupKafkaConsumer(cfg)
 	if err != nil {
 		return nil, err
@@ -335,19 +335,66 @@ func NewKafkaConsumerService(cfg *config.AppConfig, topics []string, processor L
 	return &KafkaConsumerService{
 		handler:         handler,
 		consumerManager: consumerManager,
-		topics:          topics,
 	}, nil
 }
 
 // Start begins consuming messages from Kafka
-func (s *KafkaConsumerService) Start(ctx context.Context) error {
+func (s *KafkaConsumerService) Start(ctx context.Context, prefix string, ktm *config.KafkaTopicManager, refreshInterval time.Duration) error {
 	errChan := make(chan error, 1)
+
+	currentTopics, err := ktm.GetTopicsWithPrefix(prefix)
+	if err != nil {
+		return fmt.Errorf("initial topic fetch failed: %w", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	go func() {
-		err := s.consumerManager.StartConsumer(ctx, s.topics, s.handler)
+		ticker := time.NewTicker(refreshInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				topics, err := ktm.GetTopicsWithPrefix(prefix)
+				if err != nil {
+					log.Printf("Error fetching topics: %v", err)
+					continue
+				}
+
+				if !equalStringSlices(currentTopics, topics) {
+					log.Println("New topics detected, restarting consumer...")
+
+					cancel()
+					subCtx, cancel = context.WithCancel(ctx)
+
+					currentTopics = topics
+					validTopics := filterValidTopics(currentTopics, topics)
+					if len(validTopics) == 0 {
+						log.Println("No valid topics found. Skipping consumer restart.")
+						continue
+					}
+					go func(topics []string) {
+						err := s.consumerManager.StartConsumer(subCtx, topics, s.handler)
+						if err != nil {
+							log.Printf("Consumer restart error: %v", err)
+						}
+					}(validTopics)
+				}
+
+			case <-ctx.Done():
+				log.Println("Shutting down topic watcher")
+				cancel()
+				return
+			}
+		}
+	}()
+
+	go func() {
+		err := s.consumerManager.StartConsumer(subCtx, currentTopics, s.handler)
 		if err != nil {
 			errChan <- err
 		}
-		close(errChan)
 		log.Println("Kafka consumer service started successfully")
 	}()
 	select {
@@ -356,6 +403,34 @@ func (s *KafkaConsumerService) Start(ctx context.Context) error {
 	case err := <-errChan:
 		return err
 	}
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	sort.Strings(a)
+	sort.Strings(b)
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func filterValidTopics(input []string, validList []string) []string {
+	validSet := make(map[string]struct{}, len(validList))
+	for _, t := range validList {
+		validSet[t] = struct{}{}
+	}
+	var result []string
+	for _, t := range input {
+		if _, ok := validSet[t]; ok {
+			result = append(result, t)
+		}
+	}
+	return result
 }
 
 // Stop gracefully shuts down the consumer

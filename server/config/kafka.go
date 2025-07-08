@@ -116,6 +116,11 @@ func NewKafkaConsumerManager(consumerGroup sarama.ConsumerGroup) *KafkaConsumerM
 
 // StartConsumer starts the consumer group with given topics and handler
 func (m *KafkaConsumerManager) StartConsumer(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
+	if len(topics) == 0 {
+		log.Println("No topics provided to consumer. Skipping StartConsumer.")
+		return nil
+	}
+
 	errChan := make(chan error, 1)
 	go func() {
 		for {

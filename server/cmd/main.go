@@ -58,19 +58,14 @@ func main() {
 		log.Println("Kafka consumer starting...")
 
 		processor := services.NewDefaultLogProcessor(elasticSearch)
-		topics, err := ktm.GetTopicsWithPrefix("logs-")
-		if err != nil {
-			errChan <- fmt.Errorf("failed to get topics: %w", err)
-			return
-		}
 
-		consumerService, err := services.NewKafkaConsumerService(&cfg, topics, processor)
+		consumerService, err := services.NewKafkaConsumerService(&cfg, processor)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to create consumer service: %w", err)
 			return
 		}
 
-		if err := consumerService.Start(ctx); err != nil {
+		if err := consumerService.Start(ctx, "logs-", ktm, time.Minute*2); err != nil {
 			errChan <- fmt.Errorf("kafka consumer error: %w", err)
 		}
 	}()
