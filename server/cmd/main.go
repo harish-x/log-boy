@@ -42,12 +42,12 @@ func main() {
 	if err != nil {
 		errChan <- fmt.Errorf("failed to Start kafka topic manager : %v", err)
 	}
-
+	logSSE := services.NewSSEService()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Println("REST server starting...")
-		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm); err != nil {
+		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm, logSSE); err != nil {
 			errChan <- fmt.Errorf("REST server error: %w", err)
 		}
 	}()
@@ -57,7 +57,7 @@ func main() {
 		defer wg.Done()
 		log.Println("Kafka consumer starting...")
 
-		processor := services.NewDefaultLogProcessor(elasticSearch)
+		processor := services.NewDefaultLogProcessor(elasticSearch, logSSE)
 
 		consumerService, err := services.NewKafkaConsumerService(&cfg, processor)
 		if err != nil {

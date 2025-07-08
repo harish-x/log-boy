@@ -1,6 +1,9 @@
 package resthandlers
 
 import (
+	"bufio"
+	"encoding/json"
+	"log"
 	"server/internal/api/dto"
 	"server/internal/repository"
 	"server/internal/services"
@@ -15,9 +18,10 @@ import (
 
 type LogsHandler struct {
 	svc services.LogServices
+	sse *services.SSEService
 }
 
-func SetupLogsRoutes(r *RestHandler) {
+func SetupLogsRoutes(r *RestHandler, l *services.SSEService) {
 	app := r.App
 	svc := services.LogServices{
 		Repo:   repository.NewLogRepo(r.ElasticSearch, r.SynapseDb),
@@ -208,4 +212,68 @@ func (h LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 		"total": totalCounts,
 		"logs":  logs,
 	})
+}
+
+func (h *LogsHandler) BroadcastLogstream(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+
+	if _, err := h.svc.CheckIfIndexExists(project); err != nil {
+		return ErrorMessage(c, fiber.StatusNotFound, "project not found")
+	}
+
+	user := c.Locals("user").(*pkg.UserClaims)
+	clientID := user.UniqueName
+
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Access-Control-Allow-Origin", "*")
+	c.Set("Transfer-Encoding", "chunked")
+
+	// Register a client first
+	h.sse.RegisterClient(clientID, project)
+
+	// Get a client channel
+	clientChan, ok := h.sse.GetClientChannel(clientID)
+	if !ok {
+		log.Printf("No client channel found for ClientID: %s", clientID)
+		h.sse.UnregisterClient(clientID)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get client channel"})
+	}
+
+	// Set up the streaming response
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		defer func() {
+			log.Printf("Exiting stream writer for client: %s", clientID)
+			h.sse.UnregisterClient(clientID)
+		}()
+
+		// Send initial connection confirmation
+		w.WriteString("connected")
+		w.Flush()
+
+		for logEntry := range clientChan {
+			data, err := json.Marshal(logEntry)
+			if err != nil {
+				log.Printf("Failed to marshal log entry: %v", err)
+				continue
+			}
+
+			_, err = w.WriteString("data: " + string(data) + "\n\n")
+			if err != nil {
+				log.Printf("Error writing to client %s: %v", clientID, err)
+				return
+			}
+
+			if err = w.Flush(); err != nil {
+				log.Printf("Error flushing buffer for client %s: %v", clientID, err)
+				return
+			}
+		}
+	})
+
+	return nil
 }

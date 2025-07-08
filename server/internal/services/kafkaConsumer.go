@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 
 	"server/config"
+	"server/internal/models"
 	protogen "server/internal/services/proto/logs"
 )
 
@@ -98,6 +99,7 @@ type DefaultLogProcessor struct {
 	batchSize      int
 	flushInterval  time.Duration
 	mutex          sync.RWMutex
+	logSSE         *SSEService
 }
 
 type ServiceBatch struct {
@@ -129,12 +131,13 @@ type BuildDetails struct {
 	AppVersion  string `json:"appVersion"`
 }
 
-func NewDefaultLogProcessor(es *elasticsearch.Client) *DefaultLogProcessor {
+func NewDefaultLogProcessor(es *elasticsearch.Client, l *SSEService) *DefaultLogProcessor {
 	return &DefaultLogProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),
 		batchSize:      100,
 		flushInterval:  5 * time.Second,
+		logSSE:         l,
 	}
 }
 
@@ -170,6 +173,13 @@ func (p *DefaultLogProcessor) ProcessLog(logMessage *protogen.Log, topic string,
 		Topic:         topic,
 		Partition:     partition,
 		Offset:        offset,
+	}
+	if client, ok := p.logSSE.GetClientChannel(serviceName); ok {
+		log.Printf("Client channel found for service: %v", client)
+	}
+	if len(p.logSSE.Clients) > 0 {
+		logForBroadcast := toLogModel(doc)
+		p.logSSE.BroadcastLogs(serviceName, logForBroadcast)
 	}
 
 	return batch.addDocument(doc, p.batchSize, p.flushInterval, p.es)
@@ -431,6 +441,30 @@ func filterValidTopics(input []string, validList []string) []string {
 		}
 	}
 	return result
+}
+
+// This function converts from the database model to the broadcast model.
+func toLogModel(doc LogDocument) *models.Log {
+	var builddetails = models.BuildDetails{
+		NodeVersion: doc.BuildDetails.NodeVersion,
+		AppVersion:  doc.BuildDetails.AppVersion,
+	}
+
+	logModel := models.Log{
+		ServiceName:   doc.ServiceName,
+		Level:         doc.Level,
+		Message:       doc.Message,
+		Stack:         doc.Stack,
+		RequestId:     doc.RequestId,
+		RequestUrl:    doc.RequestUrl,
+		RequestMethod: doc.RequestMethod,
+		UserAgent:     doc.UserAgent,
+		Timestamp:     doc.Timestamp,
+		IpAddress:     doc.RemoteIp,
+		BuildDetails:  builddetails,
+	}
+
+	return &logModel
 }
 
 // Stop gracefully shuts down the consumer

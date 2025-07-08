@@ -5,13 +5,14 @@ import (
 	"log"
 	"server/config"
 	"server/internal/api/rest/resthandlers"
+	"server/internal/services"
 
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager) error {
+func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager, LogSSE *services.SSEService) error {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  "http://localhost:5173",
@@ -37,7 +38,7 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 		Config:        cfg,
 		Ktm:           ktm,
 	}
-	SetupRoutes(restHandler)
+	SetupRoutes(restHandler, LogSSE)
 	go func() {
 		<-ctx.Done()
 		log.Println("Shutting down gRPC server...")
@@ -54,7 +55,7 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 	return app.Listen(cfg.ServerPort)
 }
 
-func SetupRoutes(h *resthandlers.RestHandler) {
+func SetupRoutes(h *resthandlers.RestHandler, l *services.SSEService) {
 	resthandlers.SetupProjectRoutes(h)
-	resthandlers.SetupLogsRoutes(h)
+	resthandlers.SetupLogsRoutes(h, l)
 }
