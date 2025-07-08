@@ -6,6 +6,7 @@ import (
 	"server/internal/models"
 	"server/internal/repository"
 	"server/internal/services"
+	"server/pkg"
 	"strconv"
 	"time"
 
@@ -34,16 +35,16 @@ func SetupProjectRoutes(r *RestHandler) {
 		svc: svc,
 	}
 	api := app.Group("/api/v1/projects")
+	project := api.Use(pkg.AuthMiddleware())
+	project.Post("/", handler.CreateProject)
+	project.Get("/", handler.GetAllProjects)
+	project.Get("/recent/projects", handler.GetRecentProjects)
 
-	api.Post("/", handler.CreateProject)
-	api.Get("/", handler.GetAllProjects)
-	api.Get("/recent/projects", handler.GetRecentProjects)
-
-	api.Get("/:name", handler.GetProjectByName)
-	api.Put("/:name", handler.UpdateProject)
-	api.Delete("/:name", handler.DeleteProject)
-	api.Get("/:name/key", handler.GenerateProjectKey)
-	api.Get("/:project/logs/stats", handler.GenerateLogStats)
+	project.Get("/:name", handler.GetProjectByName)
+	project.Put("/:name", handler.UpdateProject)
+	project.Delete("/:name", handler.DeleteProject)
+	project.Get("/:name/key", handler.GenerateProjectKey)
+	project.Get("/:project/logs/stats", handler.GenerateLogStats)
 }
 
 // CreateProject handles the creation of a new project based on the provided request body.

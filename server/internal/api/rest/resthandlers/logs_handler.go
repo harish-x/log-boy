@@ -4,6 +4,7 @@ import (
 	"server/internal/api/dto"
 	"server/internal/repository"
 	"server/internal/services"
+	"server/pkg"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,10 +27,10 @@ func SetupLogsRoutes(r *RestHandler) {
 		svc: svc,
 	}
 	api := app.Group("/api/v1/logs")
-	api.Get("/:project", handler.GetLogs)
-	api.Get("/:project/date", handler.GetLogsMinMaxDates)
-	api.Get("/:project/archives", handler.ListLogsFromArchive)
-	api.Get("/:project/archive", handler.GetLogsFromColdStorage)
+	api.Get("/:project", pkg.AuthMiddleware(), handler.GetLogs)
+	api.Get("/:project/date", pkg.AuthMiddleware(), handler.GetLogsMinMaxDates)
+	api.Get("/:project/archives", pkg.AuthMiddleware(), handler.ListLogsFromArchive)
+	api.Get("/:project/archive", pkg.AuthMiddleware(), handler.GetLogsFromColdStorage)
 }
 
 func (h LogsHandler) GetLogs(c *fiber.Ctx) error {
@@ -143,7 +144,6 @@ func (h LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
 		"logs": logs,
 	})
 }
-
 
 func (h LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	project := c.Params("project")
