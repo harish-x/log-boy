@@ -110,16 +110,16 @@ type ServiceBatch struct {
 }
 
 type LogDocument struct {
-	ServiceName   string        `json:"service_name"`
-	BuildDetails  *BuildDetails `json:"build_details,omitempty"`
+	ServiceName   string        `json:"serviceName"`
+	BuildDetails  *BuildDetails `json:"buildDetails,omitempty"`
 	Level         string        `json:"level"`
 	Message       string        `json:"message"`
 	Stack         string        `json:"stack,omitempty"`
-	RequestId     string        `json:"request_id,omitempty"`
-	RequestUrl    string        `json:"request_url,omitempty"`
-	RequestMethod string        `json:"request_method,omitempty"`
-	UserAgent     string        `json:"user_agent,omitempty"`
-	RemoteIp      string        `json:"remote_ip,omitempty"`
+	RequestId     string        `json:"requestId,omitempty"`
+	RequestUrl    string        `json:"requestUrl,omitempty"`
+	RequestMethod string        `json:"requestMethod,omitempty"`
+	UserAgent     string        `json:"userAgent,omitempty"`
+	RemoteIp      string        `json:"ipAddress,omitempty"`
 	Timestamp     time.Time     `json:"timestamp"`
 	Topic         string        `json:"topic"`
 	Partition     int32         `json:"partition"`

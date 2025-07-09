@@ -186,9 +186,9 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		},
 		"sort": []map[string]interface{}{},
 		"_source": []string{
-			"service_name", "level", "message", "stack", "request_method",
-			"request_url", "requestId", "remote_ip", "user_agent",
-			"timestamp", "build_details",
+			"serviceName", "level", "message", "stack", "requestUrl",
+			"requestUrl", "requestId", "ipAddress", "userAgent",
+			"timestamp", "buildDetails",
 		},
 	}
 
@@ -323,7 +323,7 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		lg := &models.Log{}
 
 		// Map fields from the source
-		if serviceName, ok := hit.Source["service_name"].(string); ok {
+		if serviceName, ok := hit.Source["serviceName"].(string); ok {
 			lg.ServiceName = serviceName
 		}
 		if level, ok := hit.Source["level"].(string); ok {
@@ -335,19 +335,19 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		if stack, ok := hit.Source["stack"].(string); ok {
 			lg.Stack = stack
 		}
-		if requestUrl, ok := hit.Source["request_url"].(string); ok {
+		if requestUrl, ok := hit.Source["requestUrl"].(string); ok {
 			lg.RequestUrl = requestUrl
 		}
-		if requestMethod, ok := hit.Source["request_method"].(string); ok {
+		if requestMethod, ok := hit.Source["requestMethod"].(string); ok {
 			lg.RequestMethod = requestMethod
 		}
 		if requestId, ok := hit.Source["requestId"].(string); ok {
 			lg.RequestId = requestId
 		}
-		if ipAddress, ok := hit.Source["remote_ip"].(string); ok {
+		if ipAddress, ok := hit.Source["ipAddress"].(string); ok {
 			lg.IpAddress = ipAddress
 		}
-		if userAgent, ok := hit.Source["user_agent"].(string); ok {
+		if userAgent, ok := hit.Source["userAgent"].(string); ok {
 			lg.UserAgent = userAgent
 		}
 
