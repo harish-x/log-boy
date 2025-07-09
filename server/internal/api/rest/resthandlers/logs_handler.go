@@ -29,15 +29,17 @@ func SetupLogsRoutes(r *RestHandler, l *services.SSEService) {
 	}
 	handler := LogsHandler{
 		svc: svc,
+		sse: l,
 	}
 	api := app.Group("/api/v1/logs")
 	api.Get("/:project", pkg.AuthMiddleware(), handler.GetLogs)
 	api.Get("/:project/date", pkg.AuthMiddleware(), handler.GetLogsMinMaxDates)
 	api.Get("/:project/archives", pkg.AuthMiddleware(), handler.ListLogsFromArchive)
 	api.Get("/:project/archive", pkg.AuthMiddleware(), handler.GetLogsFromColdStorage)
+	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), handler.StreamLogs)
 }
 
-func (h LogsHandler) GetLogs(c *fiber.Ctx) error {
+func (h *LogsHandler) GetLogs(c *fiber.Ctx) error {
 	project := c.Params("project")
 	level := c.Query("level")
 	limit, err := strconv.Atoi(c.Query("limit", "100"))
@@ -101,13 +103,14 @@ func (h LogsHandler) GetLogs(c *fiber.Ctx) error {
 		SortByDate: sortByDate,
 	}
 	logs, i, err := h.svc.GetLogs(filter)
+	log.Print(logs)
 	if err != nil {
 		return err
 	}
 	return SuccessResponse(c, fiber.StatusOK, "Logs retrieved successfully", fiber.Map{"logs": logs, "total": i})
 }
 
-func (h LogsHandler) GetLogsMinMaxDates(c *fiber.Ctx) error {
+func (h *LogsHandler) GetLogsMinMaxDates(c *fiber.Ctx) error {
 	project := c.Params("project")
 	if project == "" {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
@@ -128,7 +131,7 @@ func (h LogsHandler) GetLogsMinMaxDates(c *fiber.Ctx) error {
 		"latest": dates[1],
 	})
 }
-func (h LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
+func (h *LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
 	project := c.Params("project")
 	if project == "" {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
@@ -149,7 +152,7 @@ func (h LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
 	})
 }
 
-func (h LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
+func (h *LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	project := c.Params("project")
 	fileName := c.Query("file")
 	if fileName == "" {
@@ -214,7 +217,7 @@ func (h LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	})
 }
 
-func (h *LogsHandler) BroadcastLogstream(c *fiber.Ctx) error {
+func (h *LogsHandler) StreamLogs(c *fiber.Ctx) error {
 	project := c.Params("project")
 	if project == "" {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
@@ -233,7 +236,7 @@ func (h *LogsHandler) BroadcastLogstream(c *fiber.Ctx) error {
 	c.Set("Access-Control-Allow-Origin", "*")
 	c.Set("Transfer-Encoding", "chunked")
 
-	// Register a client first
+	// Register client
 	h.sse.RegisterClient(clientID, project)
 
 	// Get a client channel
@@ -252,25 +255,78 @@ func (h *LogsHandler) BroadcastLogstream(c *fiber.Ctx) error {
 		}()
 
 		// Send initial connection confirmation
-		w.WriteString("connected")
-		w.Flush()
+		_, err := w.WriteString("data: connected\n\n")
+		if err != nil {
+			log.Printf("Error writing connection confirmation: %v", err)
+			return
+		}
+		err = w.Flush()
+		if err != nil {
+			return
+		}
 
-		for logEntry := range clientChan {
-			data, err := json.Marshal(logEntry)
-			if err != nil {
-				log.Printf("Failed to marshal log entry: %v", err)
-				continue
+		heartbeatTicker := time.NewTicker(30 * time.Second)
+		defer heartbeatTicker.Stop()
+
+		done := make(chan struct{})
+
+		// Heartbeat goroutine
+		go func() {
+			for {
+				select {
+				case <-heartbeatTicker.C:
+					// Send heartbeat
+					_, err := w.WriteString("data: {\"type\":\"heartbeat\"}\n\n")
+					if err != nil {
+						log.Printf("Error writing heartbeat to client %s: %v", clientID, err)
+						close(done)
+						return
+					}
+					if err := w.Flush(); err != nil {
+						log.Printf("Error flushing heartbeat for client %s: %v", clientID, err)
+						close(done)
+						return
+					}
+					// Update client activity
+					h.sse.UpdateClientActivity(clientID)
+				case <-done:
+					return
+				}
 			}
+		}()
 
-			_, err = w.WriteString("data: " + string(data) + "\n\n")
-			if err != nil {
-				log.Printf("Error writing to client %s: %v", clientID, err)
-				return
-			}
+		// Main message loop
+		for {
+			select {
+			case logEntry, ok := <-clientChan:
+				if !ok {
+					log.Printf("Client channel closed for %s", clientID)
+					return
+				}
 
-			if err = w.Flush(); err != nil {
-				log.Printf("Error flushing buffer for client %s: %v", clientID, err)
+				data, err := json.Marshal(logEntry)
+				if err != nil {
+					log.Printf("Failed to marshal log entry: %v", err)
+					continue
+				}
+
+				_, err = w.WriteString("data: " + string(data) + "\n\n")
+				if err != nil {
+					log.Printf("Error writing to client %s: %v", clientID, err)
+					return
+				}
+
+				if err = w.Flush(); err != nil {
+					log.Printf("Error flushing buffer for client %s: %v", clientID, err)
+					return
+				}
+
+				// Update client activity
+				h.sse.UpdateClientActivity(clientID)
+
+			case <-done:
 				return
+
 			}
 		}
 	})

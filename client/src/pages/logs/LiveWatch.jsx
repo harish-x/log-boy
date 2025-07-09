@@ -21,6 +21,8 @@ const LiveWatch = () => {
   const eventSourceRef = useRef(null);
   const cleanupRef = useRef(null);
   const isConnectingRef = useRef(false);
+  const reconnectTimeoutRef = useRef(null);
+  const reconnectAttempts = useRef(0);
 
   useEffect(() => {
     if (isErrorProject || isLoadingProject) return;
@@ -44,10 +46,16 @@ const LiveWatch = () => {
       });
   }, [projectName, isLoadingProject, isErrorProject, getLogs]);
 
-  // Setup SSE connection
+  // Setup SSE connection with exponential backoff
   const setupSSEConnection = useCallback(async () => {
     if (isErrorProject || isLoadingProject || isConnectingRef.current) {
       return;
+    }
+
+    // Clear any existing reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
 
     // Cleanup existing connection
@@ -79,11 +87,17 @@ const LiveWatch = () => {
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        toast.info(`SSE connection opened for project: ${projectName}`);
+        toast.success(`Connected to ${projectName} log stream`);
         isConnectingRef.current = false;
+        reconnectAttempts.current = 0; // Reset attempts on successful connection
       };
 
       eventSource.onmessage = (event) => {
+        // Skip the initial "connected" message
+        if (event.data === "connected") {
+          return;
+        }
+
         setLogsData((prevLogs) => {
           const newLogs = [event.data, ...prevLogs];
           // Keep only latest 100 logs
@@ -93,19 +107,23 @@ const LiveWatch = () => {
 
       eventSource.onerror = (err) => {
         isConnectingRef.current = false;
-        if (eventSource.readyState !== EventSource.CLOSED) {
-          toast.error("Connection to log stream failed. Retrying...");
+
+        if (reconnectAttempts.current > 0) {
+          console.warn("SSE connection lost, attempting to reconnect...");
         }
 
         eventSource.close();
 
-        // Retry connection after a delay if not manually closed
+        // Exponential backoff reconnection
         if (eventSourceRef.current === eventSource) {
-          setTimeout(() => {
+          reconnectAttempts.current++;
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000); // Max 30 seconds
+
+          reconnectTimeoutRef.current = setTimeout(() => {
             if (eventSourceRef.current === eventSource) {
               setupSSEConnection();
             }
-          }, 3000);
+          }, delay);
         }
       };
 
@@ -118,6 +136,14 @@ const LiveWatch = () => {
     } catch (error) {
       isConnectingRef.current = false;
       toast.error("Failed to establish connection to log stream");
+
+      // Retry with exponential backoff
+      reconnectAttempts.current++;
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setupSSEConnection();
+      }, delay);
     }
   }, [projectName, isLoadingProject, isErrorProject, instance]);
 
@@ -127,6 +153,9 @@ const LiveWatch = () => {
 
     // Cleanup on unmount or project change
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -136,14 +165,18 @@ const LiveWatch = () => {
         cleanupRef.current = null;
       }
       isConnectingRef.current = false;
+      reconnectAttempts.current = 0;
     };
   }, [setupSSEConnection]);
 
-  // Handle page visibility changes to reconnect when page becomes visible
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && !eventSourceRef.current) {
         setupSSEConnection();
+      } else if (document.visibilityState === "hidden" && eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
 

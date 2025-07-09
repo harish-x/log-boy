@@ -4,14 +4,17 @@ import (
 	"log"
 	"server/internal/models"
 	"sync"
+	"time"
 )
 
 type Client struct {
-	ID      string // Unique client ID
-	Project string // Project associated with the client
-	Channel chan models.Log
-	closed  bool       // Track if a client is closed
-	mu      sync.Mutex // Protect a closed state
+	ID        string // Unique client ID
+	Project   string // Project associated with the client
+	Channel   chan models.Log
+	closed    bool       // Track if a client is closed
+	mu        sync.Mutex // Protect a closed state
+	LastSeen  time.Time  // Track last activity
+	Connected bool       // Track connection state
 }
 
 type SSEService struct {
@@ -37,16 +40,33 @@ func (s *SSEService) RegisterClient(clientID, project string) {
 
 	// If a client already exists, unregister it first to avoid conflicts
 	if existingClient, exists := s.Clients[clientID]; exists {
-		log.Printf("Client %s already exists, cleaning up old registration", clientID)
+		existingClient.mu.Lock()
+		timeSinceLastSeen := time.Since(existingClient.LastSeen)
+		existingClient.mu.Unlock()
+
+		// If a client was seen recently, just reactivate instead of recreating
+		if timeSinceLastSeen < 5*time.Second && existingClient.Project == project {
+			log.Printf("Reactivating recent client: %s for project: %s", clientID, project)
+			existingClient.mu.Lock()
+			existingClient.Connected = true
+			existingClient.LastSeen = time.Now()
+			existingClient.mu.Unlock()
+			return
+		}
+
+		// Clean up an old client if it's stale or different project
+		log.Printf("Client %s exists but is stale or different project, cleaning up", clientID)
 		s.unregisterClientUnsafe(clientID, existingClient)
 	}
 
 	// Create a new client
 	client := &Client{
-		ID:      clientID,
-		Project: project,
-		Channel: make(chan models.Log, 100),
-		closed:  false,
+		ID:        clientID,
+		Project:   project,
+		Channel:   make(chan models.Log, 100),
+		closed:    false,
+		LastSeen:  time.Now(),
+		Connected: true,
 	}
 	s.Clients[clientID] = client
 	log.Printf("Registered new client: %s for project: %s", clientID, project)
@@ -73,7 +93,30 @@ func (s *SSEService) UnregisterClient(clientID string) {
 	defer s.mu.Unlock()
 
 	if client, exists := s.Clients[clientID]; exists {
-		s.unregisterClientUnsafe(clientID, client)
+		client.mu.Lock()
+		client.Connected = false
+		client.mu.Unlock()
+
+		// Schedule cleanup after a delay to handle reconnections
+		go func() {
+			time.Sleep(10 * time.Second) // Wait 10 seconds before cleanup
+			s.mu.Lock()
+			defer s.mu.Unlock()
+
+			// Check if a client is still disconnected
+			if client, exists := s.Clients[clientID]; exists {
+				client.mu.Lock()
+				stillDisconnected := !client.Connected
+				client.mu.Unlock()
+
+				if stillDisconnected {
+					log.Printf("Cleaning up disconnected client after delay: %s", clientID)
+					s.unregisterClientUnsafe(clientID, client)
+				}
+			}
+		}()
+
+		log.Printf("Marked client as disconnected: %s", clientID)
 	} else {
 		log.Printf("Client not found for unregistration: %s", clientID)
 	}
@@ -150,10 +193,8 @@ func (s *SSEService) fanOutLogs(project string, projectChan chan models.Log, shu
 				if !client.closed {
 					select {
 					case client.Channel <- logEntry:
-						// Successfully sent
 					default:
 						log.Printf("Client %s channel full for project %s, dropping log", clientID, project)
-						// Consider cleaning up stalled clients here
 					}
 				}
 				client.mu.Unlock()
@@ -200,17 +241,32 @@ func (s *SSEService) GetClientChannel(clientID string) (chan models.Log, bool) {
 	return client.Channel, true
 }
 
+// UpdateClientActivity updates the last seen time for a client
+func (s *SSEService) UpdateClientActivity(clientID string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if client, exists := s.Clients[clientID]; exists {
+		client.mu.Lock()
+		client.LastSeen = time.Now()
+		client.mu.Unlock()
+	}
+}
+
 // CleanupStaleClients removes clients that might be stalled
 func (s *SSEService) CleanupStaleClients() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
+	staleThreshold := 5 * time.Minute
+	now := time.Now()
 	for clientID, client := range s.Clients {
 		client.mu.Lock()
-		if client.closed {
-			// Client is already marked as closed, clean it up
+		isStale := now.Sub(client.LastSeen) > staleThreshold
+		client.mu.Unlock()
+
+		if isStale {
+			log.Printf("Cleaning up stale client: %s", clientID)
 			s.unregisterClientUnsafe(clientID, client)
 		}
-		client.mu.Unlock()
 	}
 }

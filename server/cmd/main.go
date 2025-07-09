@@ -75,7 +75,7 @@ func main() {
 
 	select {
 	case err := <-errChan:
-		log.Printf("Error received from a service: %v. Initiating shutdown.", err)
+		log.Printf("-Error received from a service: %v. Initiating shutdown.", err)
 	case sig := <-stopChan:
 		log.Printf("Signal %v received. Initiating shutdown.", sig)
 	}
