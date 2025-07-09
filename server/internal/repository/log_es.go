@@ -192,7 +192,7 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		},
 	}
 
-	mustQueries := []map[string]interface{}{}
+	var mustQueries []map[string]interface{}
 
 	// Filter by level
 	if filters.Level != "" {
