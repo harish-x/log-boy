@@ -1,0 +1,4 @@
+{
+  "schemaType": "PROTOBUF",
+  "schema": "syntax = \"proto3\";\n\nmessage MemoryUsage{\nint64 timestamp = 1;\n int64 totalMemory =2;\n int64 freeMemory =3;\n int64 usedMemory =4;\n double memoryUsagePercentage =5;\n}\n\nmessage CoreUsage{\n int32 core=1;\n double usage=2;\n }\n\n message CpuUsage{\n int64 timestamp=1;\n double average=2;\n repeated CoreUsage cores=3;\n }\n\nmessage Metrics{\n MemoryUsage memoryUsage = 1;\n CpuUsage cpuUsage = 2;\n string serviceName = 3;\n}"
+}

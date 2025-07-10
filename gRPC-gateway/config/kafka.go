@@ -19,13 +19,12 @@ func NewProtobufSerializer(client *srclient.SchemaRegistryClient) *ProtobufSeria
 }
 
 // Serialize encodes a protobuf message using the Confluent wire format.
-func (s *ProtobufSerializer) Serialize(topic string, message proto.Message) ([]byte, error) {
+func (s *ProtobufSerializer) Serialize(subject string, message proto.Message) ([]byte, error) {
 
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("ProtobufSerializer or its client is not initialized")
 	}
 
-	subject := "Logs-value"
 	schema, err := s.client.GetLatestSchema(subject)
 	if err != nil {
 

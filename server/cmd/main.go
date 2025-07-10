@@ -9,6 +9,7 @@ import (
 	"server/config"
 	"server/internal/api/rest"
 	"server/internal/services"
+	"server/internal/services/log_consumer"
 	"strings"
 	"sync"
 	"syscall"
@@ -57,9 +58,9 @@ func main() {
 		defer wg.Done()
 		log.Println("Kafka consumer starting...")
 
-		processor := services.NewDefaultLogProcessor(elasticSearch, logSSE)
+		processor := log_consumer.NewDefaultLogProcessor(elasticSearch, logSSE)
 
-		consumerService, err := services.NewKafkaConsumerService(&cfg, processor)
+		consumerService, err := log_consumer.NewKafkaConsumerService(&cfg, processor)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to create consumer service: %w", err)
 			return

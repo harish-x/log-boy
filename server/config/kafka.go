@@ -12,7 +12,8 @@ import (
 	"github.com/riferrei/srclient"
 	"google.golang.org/protobuf/proto"
 
-	protogen "server/internal/services/proto/logs"
+	protoLog "server/internal/services/proto/logs"
+	protoMetrics "server/internal/services/proto/metrics"
 )
 
 // ProtobufDeserializer handles deserialization of protobuf messages from Kafka
@@ -24,8 +25,8 @@ func NewProtobufDeserializer(client *srclient.SchemaRegistryClient) *ProtobufDes
 	return &ProtobufDeserializer{client: client}
 }
 
-// Deserialize decodes a protobuf message using the Confluent wire format
-func (d *ProtobufDeserializer) Deserialize(data []byte) (*protogen.Log, error) {
+// DeserializeLogs decodes a protobuf message using the Confluent wire format
+func (d *ProtobufDeserializer) DeserializeLogs(data []byte) (*protoLog.Log, error) {
 	if d == nil || d.client == nil {
 		return nil, fmt.Errorf("ProtobufDeserializer or its client is not initialized")
 	}
@@ -42,7 +43,7 @@ func (d *ProtobufDeserializer) Deserialize(data []byte) (*protogen.Log, error) {
 	// Extract schema ID
 	schemaID := binary.BigEndian.Uint32(data[1:5])
 
-	// Verify schema exists (optional validation)
+	// Verify schema exists
 	_, err := d.client.GetSchema(int(schemaID))
 	if err != nil {
 		log.Printf("Warning: Could not validate schema ID %d: %v", schemaID, err)
@@ -52,7 +53,7 @@ func (d *ProtobufDeserializer) Deserialize(data []byte) (*protogen.Log, error) {
 	protoData := data[5:]
 
 	// Unmarshal protobuf message
-	logMessage := &protogen.Log{}
+	logMessage := &protoLog.Log{}
 	err = proto.Unmarshal(protoData, logMessage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal protobuf message: %w", err)
@@ -61,8 +62,44 @@ func (d *ProtobufDeserializer) Deserialize(data []byte) (*protogen.Log, error) {
 	return logMessage, nil
 }
 
+func (d *ProtobufDeserializer) DeserializeMetrics(data []byte) (*protoMetrics.Metrics, error) {
+	if d == nil || d.client == nil {
+		return nil, fmt.Errorf("ProtobufDeserializer or its client is not initialized")
+	}
+
+	if len(data) < 5 {
+		return nil, fmt.Errorf("message too short: expected at least 5 bytes, got %d", len(data))
+	}
+
+	// Check magic byte
+	if data[0] != 0x0 {
+		return nil, fmt.Errorf("invalid magic byte: expected 0x0, got 0x%x", data[0])
+	}
+
+	// Extract schema ID
+	schemaID := binary.BigEndian.Uint32(data[1:5])
+
+	// Verify schema exists
+	_, err := d.client.GetSchema(int(schemaID))
+	if err != nil {
+		log.Printf("Warning: Could not validate schema ID %d: %v", schemaID, err)
+	}
+
+	// Extract protobuf data
+	protoData := data[5:]
+
+	// Unmarshal protobuf message
+	metrics := &protoMetrics.Metrics{}
+	err = proto.Unmarshal(protoData, metrics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal protobuf message: %w", err)
+	}
+
+	return metrics, nil
+}
+
 // SetupKafkaConsumer initializes the Sarama ConsumerGroup and the ProtobufDeserializer
-func SetupKafkaConsumer(cfg *AppConfig) (sarama.ConsumerGroup, *ProtobufDeserializer, error) {
+func SetupKafkaConsumer(cfg *AppConfig, consumerGroupID string) (sarama.ConsumerGroup, *ProtobufDeserializer, error) {
 	// Create a Schema Registry client
 	srClient := srclient.NewSchemaRegistryClient(cfg.SchemaRegistryURL)
 
@@ -89,7 +126,7 @@ func SetupKafkaConsumer(cfg *AppConfig) (sarama.ConsumerGroup, *ProtobufDeserial
 	config.Version = sarama.MaxVersion
 
 	// Create a consumer group
-	consumerGroup, err := sarama.NewConsumerGroup([]string{cfg.KafkaBrokers}, "log-consumer-group", config)
+	consumerGroup, err := sarama.NewConsumerGroup([]string{cfg.KafkaBrokers}, consumerGroupID, config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create consumer group: %w", err)
 	}

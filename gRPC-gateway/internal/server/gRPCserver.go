@@ -4,7 +4,9 @@ import (
 	"context"
 	"gRPC-gateway/config"
 	protogen "gRPC-gateway/internal/services/genproto/logs"
+	metricProtogen "gRPC-gateway/internal/services/genproto/metrics"
 	"gRPC-gateway/internal/services/log_service"
+	"gRPC-gateway/internal/services/metric_service"
 	"log"
 	"net"
 
@@ -29,6 +31,8 @@ func StartNewgRPCServer(ctx context.Context, cfg *config.AppConfig, kfk *Kfk) er
 
 	logService := log_service.NewLogServiceServer(kfk.Producer, kfk.ProtoSerializer)
 	protogen.RegisterLogServiceServer(s, logService)
+	metricService := metric_service.NewMetricsServiceServer(kfk.Producer, kfk.ProtoSerializer)
+	metricProtogen.RegisterMetricsServiceServer(s, metricService)
 	go func() {
 		<-ctx.Done()
 		log.Println("Shutting down gRPC server...")

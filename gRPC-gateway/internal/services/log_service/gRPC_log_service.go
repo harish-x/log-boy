@@ -47,7 +47,7 @@ func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[p
 
 		topic := logMessage.GetServiceName()
 		if topic == "" {
-			log.Println("Received log with empty serviceName, skipping Kafka production.")
+			log.Println("Received log with empty serviceName, skipping")
 			continue
 		}
 		topic = "logs-" + topic
@@ -58,13 +58,13 @@ func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[p
 		}
 
 		// Serialize protobuf message
-		kafkaValue, err := s.protoSerializer.Serialize(topic, logMessage)
+		kafkaValue, err := s.protoSerializer.Serialize("Logs-value", logMessage)
 		if err != nil {
 			log.Printf("Failed to serialize protobuf message for topic %s: %v", topic, err)
 			continue
 		}
 
-		// Create Sarama producer message
+		// Create a Sarama producer message
 		msg := &sarama.ProducerMessage{
 			Topic: topic,
 			Value: sarama.ByteEncoder(kafkaValue),

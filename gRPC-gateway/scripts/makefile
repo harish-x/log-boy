@@ -1,8 +1,7 @@
-# windows powershell or cmd
-genLogsProto:
+genLogsProtoPS:
 	@echo "Generating logs.pb.go and logs_grpc.pb.go"
 	@echo "----------------------------------------"
-	@if not exist ..\internal\services\genproto\logs mkdir ..\internal\services\genproto\logs
+	@mkdir -p ../internal/services/genproto/metrics 2>/dev/null || mkdir "../internal/services/genproto/metrics" 2>nul || true
 	protoc \
 		--proto_path=../internal/protobuf ../internal/protobuf/log.proto \
 		--go_out=../internal/services/genproto/logs --go_opt=paths=source_relative \
@@ -18,6 +17,12 @@ CreateKafkaLogSchema:
 	curl -X POST http://localhost:8081/subjects/Logs-value/versions \
 		-H "Content-Type: application/vnd.schemaregistry.v1+json" \
 		-d @logs.proto.schema.json
+
+CreateKafkaMetricsSchema:
+	@echo "Creating metrics schema on kafka schema registry"
+	curl -X POST http://localhost:8081/subjects/Metrics-value/versions \
+		-H "Content-Type: application/vnd.schemaregistry.v1+json" \
+		-d @metrics.proto.schema.json
 
 genMetricsProto:
 	@echo "generating metrics.pb.go and metrics_grpc.pb.go"

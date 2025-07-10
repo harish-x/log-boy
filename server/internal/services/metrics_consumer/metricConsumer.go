@@ -1,12 +1,15 @@
-package services
+package metrics_consumer
 
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"server/config"
+	"server/internal/services"
+	protogen "server/internal/services/proto/logs"
+	metricproto "server/internal/services/proto/metrics"
 	"sort"
 	"strings"
 	"sync"
@@ -14,22 +17,18 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/elastic/go-elasticsearch/v9"
-
-	"server/config"
-	"server/internal/models"
-	protogen "server/internal/services/proto/logs"
 )
 
-type LogProcessor interface {
-	ProcessLog(logMessage *protogen.Log, topic string, partition int32, offset int64) error
+type MetricProcessor interface {
+	ProcessMetrics(metricsMessage *metricproto.Metrics, topic string, partition int32, offset int64) error
 }
 
 type ConsumerGroupHandler struct {
 	deserializer *config.ProtobufDeserializer
-	processor    LogProcessor
+	processor    MetricProcessor
 }
 
-func NewConsumerGroupHandler(deserializer *config.ProtobufDeserializer, processor LogProcessor) *ConsumerGroupHandler {
+func NewConsumerGroupHandler(deserializer *config.ProtobufDeserializer, processor MetricProcessor) *ConsumerGroupHandler {
 	return &ConsumerGroupHandler{
 		deserializer: deserializer,
 		processor:    processor,
@@ -65,8 +64,8 @@ func (h *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 			log.Printf("Received message from topic: %s, partition: %d, offset: %d",
 				message.Topic, message.Partition, message.Offset)
 
-			// Deserialize the message
-			logMessage, err := h.deserializer.Deserialize(message.Value)
+			// DeserializeLogs the message
+			metricMessage, err := h.deserializer.DeserializeMetrics(message.Value)
 			if err != nil {
 				log.Printf("Failed to deserialize message: %v", err)
 				session.MarkMessage(message, "")
@@ -74,7 +73,7 @@ func (h *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 			}
 
 			// Process the log message
-			err = h.processor.ProcessLog(logMessage, message.Topic, message.Partition, message.Offset)
+			err = h.processor.ProcessMetrics(metricMessage, message.Topic, message.Partition, message.Offset)
 			if err != nil {
 				log.Printf("Failed to process log message: %v", err)
 				session.MarkMessage(message, "")
@@ -92,99 +91,52 @@ func (h *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 	}
 }
 
-// DefaultLogProcessor implements basic log processing
-type DefaultLogProcessor struct {
+// DefaultMetricsProcessor implements basic log processing
+type DefaultMetricsProcessor struct {
 	es             *elasticsearch.Client
 	serviceBatches map[string]*ServiceBatch
 	batchSize      int
 	flushInterval  time.Duration
 	mutex          sync.RWMutex
-	logSSE         *SSEService
 }
 
 type ServiceBatch struct {
 	serviceName string
-	buffer      []LogDocument
+	buffer      []metricproto.Metrics
 	flushTimer  *time.Timer
 	mutex       sync.Mutex
 }
 
-type LogDocument struct {
-	ServiceName   string        `json:"serviceName"`
-	BuildDetails  *BuildDetails `json:"buildDetails,omitempty"`
-	Level         string        `json:"level"`
-	Message       string        `json:"message"`
-	Stack         string        `json:"stack,omitempty"`
-	RequestId     string        `json:"requestId,omitempty"`
-	RequestUrl    string        `json:"requestUrl,omitempty"`
-	RequestMethod string        `json:"requestMethod,omitempty"`
-	UserAgent     string        `json:"userAgent,omitempty"`
-	RemoteIp      string        `json:"ipAddress,omitempty"`
-	Timestamp     time.Time     `json:"timestamp"`
-	Topic         string        `json:"topic"`
-	Partition     int32         `json:"partition"`
-	Offset        int64         `json:"offset"`
-}
-
-type BuildDetails struct {
-	NodeVersion string `json:"nodeVersion"`
-	AppVersion  string `json:"appVersion"`
-}
-
-func NewDefaultLogProcessor(es *elasticsearch.Client, l *SSEService) *DefaultLogProcessor {
-	return &DefaultLogProcessor{
+func NewDefaultMetricsProcessor(es *elasticsearch.Client) *DefaultMetricsProcessor {
+	return &DefaultMetricsProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),
 		batchSize:      100,
-		flushInterval:  5 * time.Second,
-		logSSE:         l,
+		flushInterval:  20 * time.Second,
 	}
 }
 
-func (p *DefaultLogProcessor) ProcessLog(logMessage *protogen.Log, topic string, partition int32, offset int64) error {
-	serviceName := logMessage.GetServiceName()
+type MetricsDoc struct {
+}
+
+func (p *DefaultMetricsProcessor) ProcessMetrics(metrics *metricproto.Metrics, topic string, partition int32, offset int64) error {
+	serviceName := metrics.GetServiceName()
 	if serviceName == "" {
 		return fmt.Errorf("service name is required")
 	}
 
 	batch := p.getOrCreateServiceBatch(serviceName)
 
-	var buildDetails *BuildDetails
-	if logMessage.GetBuildDetails() != nil {
-		buildDetails = &BuildDetails{
-			NodeVersion: logMessage.GetBuildDetails().GetAppVersion(),
-			AppVersion:  logMessage.GetBuildDetails().GetAppVersion(),
-		}
-	}
-
 	// Create log document
-	doc := LogDocument{
-		ServiceName:   serviceName,
-		BuildDetails:  buildDetails,
-		Level:         logMessage.GetLevel(),
-		Message:       logMessage.GetMessage(),
-		Stack:         logMessage.GetStack(),
-		RequestId:     logMessage.GetRequestId(),
-		RequestUrl:    logMessage.GetRequestUrl(),
-		RequestMethod: logMessage.GetRequestMethod(),
-		UserAgent:     logMessage.GetUserAgent(),
-		RemoteIp:      logMessage.GetRemoteIp(),
-		Timestamp:     logMessage.GetTimestamp().AsTime(),
-		Topic:         topic,
-		Partition:     partition,
-		Offset:        offset,
-	}
-	if client, ok := p.logSSE.GetClientChannel(serviceName); ok {
-		log.Printf("Client channel found for service: %v", client)
-	}
-	if len(p.logSSE.Clients) > 0 {
-		logForBroadcast := toLogModel(doc)
-		p.logSSE.BroadcastLogs(serviceName, logForBroadcast)
+	doc := metricproto.Metrics{
+		MemoryUsage: metrics.GetMemoryUsage(),
+		CpuUsage:    metrics.GetCpuUsage(),
+		ServiceName: metrics.GetServiceName(),
 	}
 
 	return batch.addDocument(doc, p.batchSize, p.flushInterval, p.es)
 }
-func (p *DefaultLogProcessor) getOrCreateServiceBatch(serviceName string) *ServiceBatch {
+func (p *DefaultMetricsProcessor) getOrCreateServiceBatch(serviceName string) *ServiceBatch {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -283,7 +235,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 }
 
 // FlushAll Force flush all service batches
-func (p *DefaultLogProcessor) FlushAll() error {
+func (p *DefaultMetricsProcessor) FlushAll() error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
@@ -301,7 +253,7 @@ func (p *DefaultLogProcessor) FlushAll() error {
 	return nil
 }
 
-func (p *DefaultLogProcessor) Close() error {
+func (p *DefaultMetricsProcessor) Close() error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -332,8 +284,8 @@ type KafkaConsumerService struct {
 	consumerManager *config.KafkaConsumerManager
 }
 
-func NewKafkaConsumerService(cfg *config.AppConfig, processor LogProcessor) (*KafkaConsumerService, error) {
-	consumerGroup, deserializer, err := config.SetupKafkaConsumer(cfg)
+func NewKafkaConsumerService(cfg *config.AppConfig, processor MetricProcessor) (*KafkaConsumerService, error) {
+	consumerGroup, deserializer, err := config.SetupKafkaConsumer(cfg, "metrics-consumer-group")
 	if err != nil {
 		return nil, err
 	}
@@ -441,30 +393,6 @@ func filterValidTopics(input []string, validList []string) []string {
 		}
 	}
 	return result
-}
-
-// This function converts from the database model to the broadcast model.
-func toLogModel(doc LogDocument) *models.Log {
-	var builddetails = models.BuildDetails{
-		NodeVersion: doc.BuildDetails.NodeVersion,
-		AppVersion:  doc.BuildDetails.AppVersion,
-	}
-
-	logModel := models.Log{
-		ServiceName:   doc.ServiceName,
-		Level:         doc.Level,
-		Message:       doc.Message,
-		Stack:         doc.Stack,
-		RequestId:     doc.RequestId,
-		RequestUrl:    doc.RequestUrl,
-		RequestMethod: doc.RequestMethod,
-		UserAgent:     doc.UserAgent,
-		Timestamp:     doc.Timestamp,
-		IpAddress:     doc.RemoteIp,
-		BuildDetails:  builddetails,
-	}
-
-	return &logModel
 }
 
 // Stop gracefully shuts down the consumer

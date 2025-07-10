@@ -2,7 +2,7 @@ syntax = "proto3";
 package logboy;
 
 
-option go_package = "gRPC-gateway/protogen";
+option go_package = "server/internal/services/proto/metrics";
 
 message MemoryUsage{
   int64 timestamp = 1;
@@ -29,7 +29,4 @@ message Metrics{
 }
 message Res {
   bool ack = 1;
-}
-service MetricsService{
-  rpc ReceiveMetrics(stream Metrics) returns (Res);
 }

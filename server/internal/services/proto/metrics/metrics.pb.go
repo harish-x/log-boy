@@ -4,7 +4,7 @@
 // 	protoc        v6.31.0
 // source: metrics.proto
 
-package protogen
+package metrics
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -340,9 +340,7 @@ const file_metrics_proto_rawDesc = "" +
 	"\bcpuUsage\x18\x02 \x01(\v2\x10.logboy.CpuUsageR\bcpuUsage\x12 \n" +
 	"\vserviceName\x18\x03 \x01(\tR\vserviceName\"\x17\n" +
 	"\x03Res\x12\x10\n" +
-	"\x03ack\x18\x01 \x01(\bR\x03ack2B\n" +
-	"\x0eMetricsService\x120\n" +
-	"\x0eReceiveMetrics\x12\x0f.logboy.Metrics\x1a\v.logboy.Res(\x01B\x17Z\x15gRPC-gateway/protogenb\x06proto3"
+	"\x03ack\x18\x01 \x01(\bR\x03ackB(Z&server/internal/services/proto/metricsb\x06proto3"
 
 var (
 	file_metrics_proto_rawDescOnce sync.Once
@@ -368,10 +366,8 @@ var file_metrics_proto_depIdxs = []int32{
 	1, // 0: logboy.CpuUsage.cores:type_name -> logboy.CoreUsage
 	0, // 1: logboy.Metrics.memoryUsage:type_name -> logboy.MemoryUsage
 	2, // 2: logboy.Metrics.cpuUsage:type_name -> logboy.CpuUsage
-	3, // 3: logboy.MetricsService.ReceiveMetrics:input_type -> logboy.Metrics
-	4, // 4: logboy.MetricsService.ReceiveMetrics:output_type -> logboy.Res
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -390,7 +386,7 @@ func file_metrics_proto_init() {
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_metrics_proto_goTypes,
 		DependencyIndexes: file_metrics_proto_depIdxs,
