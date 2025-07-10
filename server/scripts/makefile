@@ -14,3 +14,6 @@ genMetricsProto:
 		--proto_path=./protobuf ./protobuf/metrics.proto \
 		--go_out=../internal/services/proto/metrics --go_opt=paths=source_relative \
 		--go-grpc_out=../internal/services/proto/metrics --go-grpc_opt=paths=source_relative
+
+createESindexTemplate:
+	curl -X PUT "localhost:9200/_index_template/metrics_template?pretty" -H "Content-Type: application/json" -d @es_metrics_template.json

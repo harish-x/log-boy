@@ -10,6 +10,7 @@ import (
 	"server/internal/api/rest"
 	"server/internal/services"
 	"server/internal/services/log_consumer"
+	"server/internal/services/metrics_consumer"
 	"strings"
 	"sync"
 	"syscall"
@@ -67,7 +68,24 @@ func main() {
 		}
 
 		if err := consumerService.Start(ctx, "logs-", ktm, time.Minute*2); err != nil {
-			errChan <- fmt.Errorf("kafka consumer error: %w", err)
+			errChan <- fmt.Errorf("kafka logs consumer error: %w", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch)
+
+		consumerService, err := metrics_consumer.NewKafkaConsumerService(&cfg, processor)
+		if err != nil {
+			errChan <- fmt.Errorf("failed to create consumer service: %w", err)
+			return
+		}
+
+		if err := consumerService.Start(ctx, "metrics-", ktm, time.Minute*2); err != nil {
+			errChan <- fmt.Errorf("Kafka metrics consumer error: %w", err)
 		}
 	}()
 

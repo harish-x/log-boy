@@ -1,0 +1,79 @@
+{
+  "index_patterns": ["metrics-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "metrics-policy",
+      "index.lifecycle.rollover_alias": "metrics"
+    },
+    "mappings": {
+      "_source": {
+        "enabled": true
+      },
+      "properties": {
+        "serviceName": {
+          "type": "keyword"
+        },
+        "topic": {
+          "type": "keyword"
+        },
+        "partition": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "long"
+        },
+        "memoryUsage": {
+          "type": "object",
+          "properties": {
+            "timestamp": {
+              "type": "date",
+              "format": "epoch_millis"
+            },
+            "totalMemory": {
+              "type": "long"
+            },
+            "freeMemory": {
+              "type": "long"
+            },
+            "usedMemory": {
+              "type": "long"
+            },
+            "memoryUsagePercentage": {
+              "type": "double"
+            }
+          }
+        },
+        "cpuUsage": {
+          "type": "object",
+          "properties": {
+            "timestamp": {
+              "type": "date",
+              "format": "epoch_millis"
+            },
+            "average": {
+              "type": "double"
+            },
+            "cores": {
+              "type": "nested",
+              "properties": {
+                "core": {
+                  "type": "integer"
+                },
+                "usage": {
+                  "type": "double"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "composed_of": [],
+  "priority": 200,
+  "_meta": {
+    "description": "Index template for application performance metrics"
+  }
+}

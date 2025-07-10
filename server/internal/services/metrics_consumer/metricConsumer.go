@@ -3,13 +3,12 @@ package metrics_consumer
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"server/config"
-	"server/internal/services"
-	protogen "server/internal/services/proto/logs"
-	metricproto "server/internal/services/proto/metrics"
+	metricProto "server/internal/services/proto/metrics"
 	"sort"
 	"strings"
 	"sync"
@@ -20,7 +19,7 @@ import (
 )
 
 type MetricProcessor interface {
-	ProcessMetrics(metricsMessage *metricproto.Metrics, topic string, partition int32, offset int64) error
+	ProcessMetrics(metricsMessage *metricProto.Metrics, topic string, partition int32, offset int64) error
 }
 
 type ConsumerGroupHandler struct {
@@ -102,7 +101,7 @@ type DefaultMetricsProcessor struct {
 
 type ServiceBatch struct {
 	serviceName string
-	buffer      []metricproto.Metrics
+	buffer      []Metrics
 	flushTimer  *time.Timer
 	mutex       sync.Mutex
 }
@@ -116,10 +115,32 @@ func NewDefaultMetricsProcessor(es *elasticsearch.Client) *DefaultMetricsProcess
 	}
 }
 
-type MetricsDoc struct {
+type MemoryUsage struct {
+	Timestamp             int64   `json:"timestamp"`
+	TotalMemory           int64   `json:"totalMemory"`
+	FreeMemory            int64   `json:"freeMemory"`
+	UsedMemory            int64   `json:"usedMemory"`
+	MemoryUsagePercentage float64 `json:"memoryUsagePercentage"`
+}
+type CoreUsage struct {
+	Core  int32   `json:"core"`
+	Usage float64 `json:"usage"`
+}
+type CpuUsage struct {
+	Timestamp int64        `json:"timestamp"`
+	Average   float64      `json:"average"`
+	Cores     []*CoreUsage `json:"cores"`
+}
+type Metrics struct {
+	MemoryUsage *MemoryUsage `json:"memoryUsage"`
+	CpuUsage    *CpuUsage    `json:"cpuUsage"`
+	ServiceName string       `json:"serviceName"`
+	Topic       string       `json:"topic"`
+	Partition   int32        `json:"partition"`
+	Offset      int64        `json:"offset"`
 }
 
-func (p *DefaultMetricsProcessor) ProcessMetrics(metrics *metricproto.Metrics, topic string, partition int32, offset int64) error {
+func (p *DefaultMetricsProcessor) ProcessMetrics(metrics *metricProto.Metrics, topic string, partition int32, offset int64) error {
 	serviceName := metrics.GetServiceName()
 	if serviceName == "" {
 		return fmt.Errorf("service name is required")
@@ -127,14 +148,36 @@ func (p *DefaultMetricsProcessor) ProcessMetrics(metrics *metricproto.Metrics, t
 
 	batch := p.getOrCreateServiceBatch(serviceName)
 
-	// Create log document
-	doc := metricproto.Metrics{
-		MemoryUsage: metrics.GetMemoryUsage(),
-		CpuUsage:    metrics.GetCpuUsage(),
-		ServiceName: metrics.GetServiceName(),
+	memoryUsage := MemoryUsage{
+		Timestamp:             metrics.MemoryUsage.GetTimestamp(),
+		TotalMemory:           metrics.MemoryUsage.GetTotalMemory(),
+		FreeMemory:            metrics.MemoryUsage.GetFreeMemory(),
+		UsedMemory:            metrics.MemoryUsage.GetUsedMemory(),
+		MemoryUsagePercentage: metrics.MemoryUsage.GetMemoryUsagePercentage(),
 	}
+	var coreUsage []*CoreUsage
 
-	return batch.addDocument(doc, p.batchSize, p.flushInterval, p.es)
+	for _, u := range metrics.GetCpuUsage().Cores {
+		c := CoreUsage{
+			Core:  u.GetCore(),
+			Usage: u.GetUsage(),
+		}
+		coreUsage = append(coreUsage, &c)
+	}
+	cpuUsage := CpuUsage{
+		Timestamp: metrics.CpuUsage.GetTimestamp(),
+		Average:   metrics.CpuUsage.GetAverage(),
+		Cores:     coreUsage,
+	}
+	metricsData := Metrics{
+		MemoryUsage: &memoryUsage,
+		CpuUsage:    &cpuUsage,
+		ServiceName: serviceName,
+		Topic:       topic,
+		Partition:   partition,
+		Offset:      offset,
+	}
+	return batch.addDocument(metricsData, p.batchSize, p.flushInterval, p.es)
 }
 func (p *DefaultMetricsProcessor) getOrCreateServiceBatch(serviceName string) *ServiceBatch {
 	p.mutex.Lock()
@@ -144,7 +187,7 @@ func (p *DefaultMetricsProcessor) getOrCreateServiceBatch(serviceName string) *S
 	if !exists {
 		batch = &ServiceBatch{
 			serviceName: serviceName,
-			buffer:      make([]LogDocument, 0, p.batchSize),
+			buffer:      make([]Metrics, 0, p.batchSize),
 		}
 		p.serviceBatches[serviceName] = batch
 	}
@@ -152,7 +195,7 @@ func (p *DefaultMetricsProcessor) getOrCreateServiceBatch(serviceName string) *S
 	return batch
 }
 
-func (sb *ServiceBatch) addDocument(doc LogDocument, batchSize int, flushInterval time.Duration, client *elasticsearch.Client) error {
+func (sb *ServiceBatch) addDocument(doc Metrics, batchSize int, flushInterval time.Duration, client *elasticsearch.Client) error {
 	sb.mutex.Lock()
 	defer sb.mutex.Unlock()
 
@@ -187,7 +230,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 	}
 
 	var buf bytes.Buffer
-	indexName := fmt.Sprintf("logs-%s", sb.serviceName)
+	indexName := fmt.Sprintf("metrics-%s-%s", sb.serviceName, time.Now().Format("02.01.2006"))
 
 	for _, doc := range sb.buffer {
 		action := map[string]interface{}{
