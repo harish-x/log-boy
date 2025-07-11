@@ -18,8 +18,8 @@ func NewElasticSearchDB(dns string) (*elasticsearch.Client, error) {
 		},
 
 		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: time.Second,
+			MaxIdleConnsPerHost:   20,
+			ResponseHeaderTimeout: time.Second * 2,
 			DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
 			TLSClientConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12,

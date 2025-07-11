@@ -1,0 +1,79 @@
+{
+  "index_patterns": ["logs-*"],
+  "priority": 501,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "1s"
+    },
+    "mappings": {
+      "properties": {
+        "serviceName": {
+          "type": "keyword"
+        },
+        "buildDetails": {
+          "type": "object",
+          "properties": {
+            "nodeVersion": {
+              "type": "keyword"
+            },
+            "appVersion": {
+              "type": "keyword"
+            }
+          }
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "stack": {
+          "type": "text",
+          "analyzer": "standard"
+        },
+        "requestId": {
+          "type": "keyword"
+        },
+        "requestUrl": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "requestMethod": {
+          "type": "keyword"
+        },
+        "ipAddress": {
+          "type": "ip"
+        },
+        "userAgent": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        }
+      }
+    }
+  }
+}

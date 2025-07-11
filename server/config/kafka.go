@@ -114,13 +114,13 @@ func SetupKafkaConsumer(cfg *AppConfig, consumerGroupID string) (sarama.Consumer
 	config.Consumer.Group.Rebalance.Retry.Max = 5
 	config.Consumer.Group.Rebalance.Retry.Backoff = 5 * time.Second
 	config.Consumer.Offsets.AutoCommit.Enable = true
-	config.Consumer.Offsets.AutoCommit.Interval = 1 * time.Second
+	config.Consumer.Offsets.AutoCommit.Interval = 2 * time.Second
 	config.Consumer.Group.Heartbeat.Interval = 3 * time.Second
 	config.Consumer.Group.Session.Timeout = 30 * time.Second
 	config.Consumer.Group.Rebalance.Timeout = 60 * time.Second
-	config.Net.DialTimeout = 10 * time.Second
-	config.Net.ReadTimeout = 10 * time.Second
-	config.Net.WriteTimeout = 10 * time.Second
+	config.Net.DialTimeout = 20 * time.Second
+	config.Net.ReadTimeout = 20 * time.Second
+	config.Net.WriteTimeout = 20 * time.Second
 	config.Metadata.Retry.Max = 5
 	config.Metadata.Retry.Backoff = 5 * time.Second
 	config.Version = sarama.MaxVersion

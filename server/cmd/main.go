@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
-	elasticSearch, err := config.NewElasticSearchDB(cfg.ElasticSearch)
+	elasticSearch, err := config.NewElasticSearchDB(cfg.ElasticSearchDNS)
 	if err != nil {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
@@ -60,8 +60,8 @@ func main() {
 		log.Println("Kafka consumer starting...")
 
 		processor := log_consumer.NewDefaultLogProcessor(elasticSearch, logSSE)
-
-		consumerService, err := log_consumer.NewKafkaConsumerService(&cfg, processor)
+		consumerGroupID := "log-consumer-group"
+		consumerService, err := log_consumer.NewKafkaConsumerService(&cfg, processor, consumerGroupID)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to create consumer service: %w", err)
 			return
@@ -77,15 +77,15 @@ func main() {
 		defer wg.Done()
 
 		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch)
-
-		consumerService, err := metrics_consumer.NewKafkaConsumerService(&cfg, processor)
+		consumerGroupId := "metrics-consumer-group"
+		consumerService, err := metrics_consumer.NewKafkaConsumerService(&cfg, processor, consumerGroupId)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to create consumer service: %w", err)
 			return
 		}
 
 		if err := consumerService.Start(ctx, "metrics-", ktm, time.Minute*2); err != nil {
-			errChan <- fmt.Errorf("Kafka metrics consumer error: %w", err)
+			errChan <- fmt.Errorf("kafka metrics consumer error: %w", err)
 		}
 	}()
 

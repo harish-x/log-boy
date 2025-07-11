@@ -21,15 +21,10 @@ type ProjectHandler struct {
 func SetupProjectRoutes(r *RestHandler) {
 	app := r.App
 
-	logSvc := services.LogServices{
-		Repo:   repository.NewLogRepo(r.ElasticSearch, r.SynapseDb),
-		Config: r.Config,
-	}
 	svc := services.ProjectServices{
-		Repo:        repository.NewProjectRepo(r.PostgresDb),
-		LogServices: &logSvc,
-		Config:      r.Config,
-		Ktm:         r.Ktm,
+		Repo:   repository.NewProjectRepo(r.PostgresDb),
+		Config: r.Config,
+		Ktm:    r.Ktm,
 	}
 	handler := ProjectHandler{
 		svc: svc,
