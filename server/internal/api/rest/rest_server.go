@@ -6,13 +6,14 @@ import (
 	"server/config"
 	"server/internal/api/rest/resthandlers"
 	"server/internal/services"
+	serversentevents "server/internal/services/server_sent_events"
 
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager, LogSSE *services.SSEService) error {
+func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager, LogSSE *services.SSEService, metricSSE *serversentevents.SSEMetricsService) error {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  "http://localhost:5173",
@@ -38,7 +39,7 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 		Config:        cfg,
 		Ktm:           ktm,
 	}
-	SetupRoutes(restHandler, LogSSE)
+	SetupRoutes(restHandler, LogSSE, metricSSE)
 	go func() {
 		<-ctx.Done()
 		log.Println("Shutting down gRPC server...")
@@ -55,7 +56,8 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 	return app.Listen(cfg.ServerPort)
 }
 
-func SetupRoutes(h *resthandlers.RestHandler, l *services.SSEService) {
+func SetupRoutes(h *resthandlers.RestHandler, l *services.SSEService, m *serversentevents.SSEMetricsService) {
 	resthandlers.SetupProjectRoutes(h)
 	resthandlers.SetupLogsRoutes(h, l)
+	resthandlers.SetupMetricsHandler(h, m)
 }

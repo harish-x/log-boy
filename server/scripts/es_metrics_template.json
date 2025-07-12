@@ -1,9 +1,9 @@
 {
-  "index_patterns": ["metrics-*-*"],
+  "index_patterns": ["m-*-*"],
   "template": {
     "settings": {
-      "number_of_shards": 2,
-      "number_of_replicas": 3,
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
       "index.lifecycle.name": "metrics-policy",
       "index.lifecycle.rollover_alias": "metrics"
     },
@@ -71,8 +71,6 @@
       }
     }
   },
-  "composed_of": [],
-  "data_stream": {},
   "priority": 501,
   "_meta": {
     "description": "Index template for application performance metrics"

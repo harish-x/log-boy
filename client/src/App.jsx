@@ -15,6 +15,7 @@ import Home from "@/pages/home/Home";
 import "./App.css";
 import ColdStorage from "@/pages/logs/ColdStorage";
 import ArchiveLogs from "@/components/logs/ArchiveLogs";
+import Monitoring from "@/pages/metrics/Monitoring";
 
 const App = () => {
   return (
@@ -41,6 +42,7 @@ const App = () => {
               <Route path="project/:projectName/cold_storage/archive/:logName" element={<ArchiveLogs />} />
               <Route path="project/:projectName/live-watch" element={<LiveWatch />} />
               <Route path="project/:projectName/settings" element={<ProjectSettings />} />
+              <Route path="project/:projectName/metrics" element={<Monitoring />} />
             </Route>
 
             <Route path="*" element={<PageNotFound />} />

@@ -4,7 +4,7 @@ export const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_MSAL_CLIENT_ID,
     authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MSAL_TENANT_ID}/v2.0`,
-    redirectUri: "http://localhost:5173/dashboard/projects",
+    redirectUri: import.meta.env.VITE_AUTH_REDIRECT_URL || "http://localhost:5173/dashboard/projects",
   },
   cache: {
     cacheLocation: "sessionStorage",

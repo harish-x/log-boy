@@ -1,4 +1,15 @@
-import { GalleryVerticalEnd, Tv, HomeIcon, Cog, NotepadText, ChartNoAxesCombined, TriangleAlert, RefrigeratorIcon } from "lucide-react";
+import {
+  GalleryVerticalEnd,
+  Tv,
+  HomeIcon,
+  Cog,
+  NotepadText,
+  ChartNoAxesCombined,
+  TriangleAlert,
+  ActivityIcon,
+  RefrigeratorIcon,
+  AlertTriangleIcon,
+} from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "./ui/sidebar";
 
 import { useLocation, useParams, useMatch, Link } from "react-router-dom";
@@ -52,6 +63,24 @@ export function LogsSidebar({ ...props }) {
               <div className="flex items-center ">
                 <NotepadText />
                 <span className="ml-2 text-base">Logs</span>
+              </div>
+            </SidebarMenuButton>
+          </Link>
+
+          <Link to={`/dashboard/project/${projectName}/metrics`}>
+            <SidebarMenuButton size="icon" className={"py-2 mt-2 cursor-pointer"} isActive={location.pathname.includes("metrics")}>
+              <div className="flex items-center ">
+                <ActivityIcon />
+                <span className="ml-2 text-base">Metrics</span>
+              </div>
+            </SidebarMenuButton>
+          </Link>
+
+          <Link to={`/dashboard/project/${projectName}/alert`}>
+            <SidebarMenuButton size="icon" className={"py-2 mt-2 cursor-pointer"} isActive={location.pathname.includes("alert")}>
+              <div className="flex items-center ">
+                <AlertTriangleIcon />
+                <span className="ml-2 text-base">Alert</span>
               </div>
             </SidebarMenuButton>
           </Link>

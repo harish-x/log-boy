@@ -11,6 +11,7 @@ import (
 	"server/internal/log_consumer"
 	"server/internal/metrics_consumer"
 	"server/internal/services"
+	serversentevents "server/internal/services/server_sent_events"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,11 +46,12 @@ func main() {
 		errChan <- fmt.Errorf("failed to Start kafka topic manager : %v", err)
 	}
 	logSSE := services.NewSSEService()
+	metricSSE := serversentevents.NewSSEMetricsService()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Println("REST server starting...")
-		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm, logSSE); err != nil {
+		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm, logSSE, metricSSE); err != nil {
 			errChan <- fmt.Errorf("REST server error: %w", err)
 		}
 	}()
@@ -76,7 +78,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch)
+		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch, metricSSE)
 		consumerGroupId := "metrics-consumer-group"
 		consumerService, err := metrics_consumer.NewKafkaConsumerService(&cfg, processor, consumerGroupId)
 		if err != nil {

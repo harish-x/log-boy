@@ -97,7 +97,10 @@ const LiveWatch = () => {
         if (event.data === "connected") {
           return;
         }
-
+        // Skip heartbeat messages
+        if (event.data === "{\"type\":\"heartbeat\"}") {
+          return;
+        }
         setLogsData((prevLogs) => {
           const newLogs = [event.data, ...prevLogs];
           // Keep only latest 100 logs

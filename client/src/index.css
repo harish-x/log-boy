@@ -101,6 +101,7 @@
   --sidebar-accent-foreground: oklch(0.9674 0.0013 286.3752);
   --sidebar-border: oklch(0.2739 0.0055 286.0326);
   --sidebar-ring: oklch(0.8711 0.0055 286.286);
+  --cpuusage:oklch(0.623 0.214 259.81);
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -190,6 +191,7 @@
   --color-verbose: var(--verbose);
   --color-debug: var(--debug);
   --color-silly: var(--silly);
+  --color-cpuusage: var(--cpuusage);
 }
 
 @layer base {

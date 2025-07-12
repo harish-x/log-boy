@@ -8,7 +8,9 @@ import (
 	"io"
 	"log"
 	"server/config"
+	"server/internal/models"
 	metricProto "server/internal/services/proto/metrics"
+	serversentevents "server/internal/services/server_sent_events"
 	"sort"
 	"strings"
 	"sync"
@@ -97,6 +99,7 @@ type DefaultMetricsProcessor struct {
 	batchSize      int
 	flushInterval  time.Duration
 	mutex          sync.RWMutex
+	metricsSSE     *serversentevents.SSEMetricsService
 }
 
 type ServiceBatch struct {
@@ -106,12 +109,13 @@ type ServiceBatch struct {
 	mutex       sync.Mutex
 }
 
-func NewDefaultMetricsProcessor(es *elasticsearch.Client) *DefaultMetricsProcessor {
+func NewDefaultMetricsProcessor(es *elasticsearch.Client, m *serversentevents.SSEMetricsService) *DefaultMetricsProcessor {
 	return &DefaultMetricsProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),
 		batchSize:      100,
-		flushInterval:  20 * time.Second,
+		flushInterval:  10 * time.Second,
+		metricsSSE:     m,
 	}
 }
 
@@ -177,6 +181,14 @@ func (p *DefaultMetricsProcessor) ProcessMetrics(metrics *metricProto.Metrics, t
 		Partition:   partition,
 		Offset:      offset,
 	}
+
+	if client, ok := p.metricsSSE.GetMetricsClientChannel(serviceName); ok {
+		log.Printf("Client channel found for service: %v", client)
+	}
+	if len(p.metricsSSE.Clients) > 0 {
+		metrics := toMetricsmodel(metricsData)
+		p.metricsSSE.BroadcastMetrics(serviceName, &metrics)
+	}
 	return batch.addDocument(metricsData, p.batchSize, p.flushInterval, p.es)
 }
 func (p *DefaultMetricsProcessor) getOrCreateServiceBatch(serviceName string) *ServiceBatch {
@@ -230,7 +242,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 	}
 
 	var buf bytes.Buffer
-	indexName := fmt.Sprintf("metrics-%s-%s", sb.serviceName, time.Now().Format("02.01.2006"))
+	indexName := fmt.Sprintf("m-%s-%s", sb.serviceName, time.Now().Format("02.01.2006"))
 
 	for _, doc := range sb.buffer {
 		action := map[string]interface{}{
@@ -239,7 +251,11 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 				"_id":    fmt.Sprintf("%s-%d-%d", doc.Topic, doc.Partition, doc.Offset),
 			},
 		}
-		actionBytes, _ := json.Marshal(action)
+		actionBytes, err := json.Marshal(action)
+
+		if err != nil {
+			return fmt.Errorf("failed to marshal action: %w", err)
+		}
 		buf.Write(actionBytes)
 		buf.WriteByte('\n')
 
@@ -253,7 +269,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 	res, err := client.Bulk(
 		bytes.NewReader(buf.Bytes()),
 		client.Bulk.WithIndex(indexName),
-		client.Bulk.WithRefresh("false"),
+		client.Bulk.WithRefresh("wait_for"),
 	)
 	if err != nil {
 		return fmt.Errorf("bulk request failed for service %s: %w", sb.serviceName, err)
@@ -269,7 +285,7 @@ func (sb *ServiceBatch) flushBatch(client *elasticsearch.Client) error {
 		return fmt.Errorf("bulk request returned error for service %s: %s", sb.serviceName, res.String())
 	}
 
-	log.Printf("Successfully indexed %d documents for service: %s", len(sb.buffer), sb.serviceName)
+	log.Printf("Successfully indexed %d documents for service: %s on %s", len(sb.buffer), sb.serviceName, indexName)
 
 	// Clear buffer
 	sb.buffer = sb.buffer[:0]
@@ -442,4 +458,34 @@ func filterValidTopics(input []string, validList []string) []string {
 func (s *KafkaConsumerService) Stop() error {
 	log.Println("Stopping Kafka consumer service...")
 	return s.consumerManager.StopConsumer()
+}
+
+func toMetricsmodel(m Metrics) models.Metrics {
+
+	memoryUsage := models.MemoryUsage{
+		Timestamp:             m.CpuUsage.Timestamp,
+		TotalMemory:           m.MemoryUsage.TotalMemory,
+		FreeMemory:            m.MemoryUsage.FreeMemory,
+		UsedMemory:            m.MemoryUsage.UsedMemory,
+		MemoryUsagePercentage: m.MemoryUsage.MemoryUsagePercentage,
+	}
+	var coreUsage []*models.CoreUsage
+
+	for _, u := range m.CpuUsage.Cores {
+		c := models.CoreUsage{
+			Core:  u.Core,
+			Usage: u.Usage,
+		}
+		coreUsage = append(coreUsage, &c)
+	}
+	cpuUsage := models.CpuUsage{
+		Timestamp: m.CpuUsage.Timestamp,
+		Average:   m.CpuUsage.Average,
+		Cores:     coreUsage,
+	}
+	return models.Metrics{
+		MemoryUsage: &memoryUsage,
+		CpuUsage:    &cpuUsage,
+		ServiceName: m.ServiceName,
+	}
 }
