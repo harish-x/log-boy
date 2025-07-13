@@ -379,11 +379,6 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 
 }
 
-func (l *LogES) BulkInsertLogs(logs []*models.Log) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (l *LogES) GetLogsAvailabilities(projectName string) ([]string, error) {
 	var dates []string
 

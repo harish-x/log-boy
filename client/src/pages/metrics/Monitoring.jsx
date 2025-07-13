@@ -4,6 +4,7 @@ import { useMsal } from "@azure/msal-react";
 import { apiTokenRequest } from "@/authConfig";
 import { toast } from "sonner";
 import LiveMetrics from "@/components/metrics/LiveMetrics";
+import CpuUsageGraph from "@/components/metrics/CpuUsageGraph";
 
 const Monitoring = () => {
   const { projectName } = useParams();
@@ -217,6 +218,7 @@ const liveMetricsProps = useMemo(
     <>
       <div className="projects-container bg-background px-2 w-[98%] mx-auto rounded-2xl border border-primary/[0.20] min-h-screen">
         <LiveMetrics {...liveMetricsProps} />
+        <CpuUsageGraph/>
       </div>
     </>
   );

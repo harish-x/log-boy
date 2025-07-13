@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"server/config"
@@ -10,7 +9,6 @@ import (
 	"server/internal/models"
 	"server/internal/repository"
 	"strings"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azdatalake"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azdatalake/filesystem"
@@ -112,26 +110,4 @@ func (s *LogServices) GetLogsFromArchive(p string, fileName string, filter *dto.
 
 func (s *LogServices) GetArchiveMinMaxDate(P string, fileName string) ([]string, error) {
 	return s.Repo.GetArchiveLogMinMaxDate(P, fileName)
-}
-
-
-func (s *LogServices) FormateFilterDateIfExists(fromStr string, toStr string) (string, string, error) {
-	var fromFormatted, toFormatted string
-	if fromStr != "" {
-		from, err := time.Parse(time.RFC3339, fromStr)
-		if err != nil {
-			return "", "", errors.New("invalid FROM date format")
-		}
-		fromFormatted = from.Format(time.RFC3339)
-	}
-
-	if toStr != "" {
-		to, err := time.Parse(time.RFC3339, toStr)
-		if err != nil {
-			return "", "", errors.New("invalid TO date format")
-		}
-		toFormatted = to.Format(time.RFC3339)
-	}
-
-	return fromFormatted, toFormatted, nil
 }

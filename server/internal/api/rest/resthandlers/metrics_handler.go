@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"log"
+	"server/internal/repository"
+	"server/internal/services"
 	serversentevents "server/internal/services/server_sent_events"
 	"server/pkg"
 	"time"
@@ -13,17 +15,23 @@ import (
 
 type MetricsHandler struct {
 	sse *serversentevents.SSEMetricsService
+	svc *services.MetricsServices
 }
 
 func SetupMetricsHandler(r *RestHandler, l *serversentevents.SSEMetricsService) {
 	app := r.App
+	svc := services.MetricsServices{
+		Repo: repository.NewMetricsRepo(r.ElasticSearch),
+	}
 	handler := MetricsHandler{
 		sse: l,
+		svc: &svc,
 	}
-
 	api := app.Group("/api/v1/metrics/")
 
 	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), handler.StreamMetrics)
+	api.Get("/:project/cpu", handler.GetCpuUsage)
+	api.Get("/:project/memory", handler.Getmemoryusage)
 
 }
 
@@ -142,4 +150,54 @@ func (h *MetricsHandler) StreamMetrics(c *fiber.Ctx) error {
 	})
 
 	return nil
+}
+
+func (h *MetricsHandler) GetCpuUsage(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+	from := c.Query("from")
+	to := c.Query("to")
+	groupBy := c.Query("points")
+	formattedFrom, err := pkg.ConvertStringToEpochMillis(from)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	}
+	formettedTo, err := pkg.ConvertStringToEpochMillis(to)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	}
+	res, err := h.svc.GetCpuUsage(project, formattedFrom, formettedTo, groupBy)
+
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return SuccessResponse(c, fiber.StatusOK, "success", res)
+}
+
+func (h *MetricsHandler) Getmemoryusage(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+	from := c.Query("from")
+	to := c.Query("to")
+	groupBy := c.Query("points")
+	formattedFrom, err := pkg.ConvertStringToEpochMillis(from)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	}
+	formettedTo, err := pkg.ConvertStringToEpochMillis(to)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	}
+	res, err := h.svc.GetMemoryUsage(project, formattedFrom, formettedTo, groupBy)
+
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return SuccessResponse(c, fiber.StatusOK, "success", res)
 }

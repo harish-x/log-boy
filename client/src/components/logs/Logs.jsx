@@ -39,7 +39,7 @@ const Logs = () => {
     useLazyGetMinMaxDateQuery();
 
   {
-    /*---------------------pagination--------------------------------------*/
+    /*------------pagination------------*/
   }
   const total = logsData?.data.total || 0; // total number of logs
   const totalPages = Math.ceil(total / limit); // total number of pages
@@ -65,9 +65,7 @@ const Logs = () => {
   };
 
   const pageNumbers = getPageNumbers(page, totalPages);
-  {
-    /*------------------------------------------------------------------*/
-  }
+
 
   // function to clear filters
   function clearFilters() {

@@ -75,22 +75,20 @@ func (h *LogsHandler) GetLogs(c *fiber.Ctx) error {
 	if exists == false {
 		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
 	}
-
 	var fromFormatted, toFormatted string
+
 	if fromStr != "" {
-		from, err := time.Parse(time.RFC3339, fromStr)
+		fromFormatted, err = pkg.ParseFormettedTimeString(fromStr)
 		if err != nil {
-			return BadRequestError(c, "invalid from")
+			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
 		}
-		fromFormatted = from.Format(time.RFC3339)
 	}
 
 	if toStr != "" {
-		to, err := time.Parse(time.RFC3339, toStr)
+		toFormatted, err = pkg.ParseFormettedTimeString(fromStr)
 		if err != nil {
-			return BadRequestError(c, "invalid to")
+			return BadRequestError(c, err.Error())
 		}
-		toFormatted = to.Format(time.RFC3339)
 	}
 
 	filter := &dto.LogFilter{
@@ -182,7 +180,7 @@ func (h *LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	if ok := slices.Contains(levelEnum, level); !ok {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Invalid level")
 	}
-	fromFormatted, toFormatted, err := h.svc.FormateFilterDateIfExists(fromStr, toStr)
+	fromFormatted, toFormatted, err := pkg.FormateFilterDateIfExists(fromStr, toStr)
 	if err != nil {
 		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
 	}

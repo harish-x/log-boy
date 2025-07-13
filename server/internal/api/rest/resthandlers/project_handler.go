@@ -8,7 +8,6 @@ import (
 	"server/internal/services"
 	"server/pkg"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -39,7 +38,6 @@ func SetupProjectRoutes(r *RestHandler) {
 	project.Put("/:name", handler.UpdateProject)
 	project.Delete("/:name", handler.DeleteProject)
 	project.Get("/:name/key", handler.GenerateProjectKey)
-	project.Get("/:project/logs/stats", handler.GenerateLogStats)
 }
 
 // CreateProject handles the creation of a new project based on the provided request body.
@@ -132,59 +130,6 @@ func (h *ProjectHandler) DeleteProject(c *fiber.Ctx) error {
 		return InternalError(c, err)
 	}
 	return SuccessResponse(c, fiber.StatusOK, "Project deleted successfully", nil)
-}
-
-// GenerateLogStats calculates log statistics (errors, warnings, requests) for a project and updates the project's metrics.
-func (h *ProjectHandler) GenerateLogStats(c *fiber.Ctx) error {
-	project := c.Params("project")
-	if project == "" {
-		return BadRequestError(c, "Project name is required")
-	}
-
-	proj, err := h.svc.GetProjectByName(project)
-	if err != nil {
-		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
-	}
-
-	logs, err := h.svc.GetLogs(proj.Name)
-	if err != nil {
-		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
-	}
-	var totalErrors, totalWarnings, totalRequests int
-	for _, log := range logs {
-		switch log.Level {
-		case "error":
-			totalErrors++
-		case "warn":
-			totalWarnings++
-		}
-	}
-	totalRequests = len(logs)
-	errorRatio := float32(0)
-	if totalErrors+totalWarnings+totalRequests > 0 {
-		errorRatio = float32(totalErrors) / float32(totalErrors+totalWarnings+totalRequests)
-	}
-	if proj.ErrorRatio != errorRatio ||
-		proj.TotalErrors != totalErrors ||
-		proj.TotalWarnings != totalWarnings ||
-		proj.TotalRequests != totalRequests {
-
-		updatedProject, err := h.svc.UpdateProject(&models.Project{
-			ID:            proj.ID,
-			ErrorRatio:    errorRatio,
-			TotalErrors:   totalErrors,
-			TotalWarnings: totalWarnings,
-			TotalRequests: totalRequests,
-			Name:          proj.Name,
-			UpdatedAt:     time.Now(),
-		})
-		if err != nil {
-			return InternalError(c, err)
-		}
-		return SuccessResponse(c, fiber.StatusOK, "Log stats generated successfully", updatedProject)
-	}
-	return SuccessResponse(c, fiber.StatusOK, "Log stats already up to date", proj)
-
 }
 
 // GetProjectByID retrieves a project by its ID from the path parameter and returns it in the response.
