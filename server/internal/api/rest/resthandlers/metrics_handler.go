@@ -21,7 +21,8 @@ type MetricsHandler struct {
 func SetupMetricsHandler(r *RestHandler, l *serversentevents.SSEMetricsService) {
 	app := r.App
 	svc := services.MetricsServices{
-		Repo: repository.NewMetricsRepo(r.ElasticSearch),
+		Repo:       repository.NewMetricsRepo(r.ElasticSearch),
+		ProjetRepo: repository.NewProjectRepo(r.PostgresDb),
 	}
 	handler := MetricsHandler{
 		sse: l,
@@ -32,6 +33,7 @@ func SetupMetricsHandler(r *RestHandler, l *serversentevents.SSEMetricsService) 
 	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), handler.StreamMetrics)
 	api.Get("/:project/cpu", handler.GetCpuUsage)
 	api.Get("/:project/memory", handler.Getmemoryusage)
+	api.Get("/:project/date", handler.GetMetricsMinMaxDates)
 
 }
 
@@ -41,10 +43,13 @@ func (h *MetricsHandler) StreamMetrics(c *fiber.Ctx) error {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
 	}
 
-	// if _, err := h.svc.CheckIfIndexExists(project); err != nil {
-	// 	return ErrorMessage(c, fiber.StatusNotFound, "project not found")
-	// }
-
+	projectExists, err := h.svc.CheckIfProjectExists(project)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if !projectExists {
+		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
+	}
 	user := c.Locals("user").(*pkg.UserClaims)
 	clientID := user.UniqueName
 
@@ -158,16 +163,34 @@ func (h *MetricsHandler) GetCpuUsage(c *fiber.Ctx) error {
 		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
 	}
 	from := c.Query("from")
-	to := c.Query("to")
+	to := c.Query("to", "0")
 	groupBy := c.Query("points")
-	formattedFrom, err := pkg.ConvertStringToEpochMillis(from)
+	var formattedFrom int64
+	var formettedTo int64 = 0
+	var err error
+
+	projectExists, err := h.svc.CheckIfProjectExists(project)
 	if err != nil {
-		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
 	}
-	formettedTo, err := pkg.ConvertStringToEpochMillis(to)
-	if err != nil {
-		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+	if !projectExists {
+		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
 	}
+
+	if from != "" {
+		formattedFrom, err = pkg.ConvertStringToEpochMillis(from)
+		if err != nil {
+			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+		}
+	}
+
+	if to != "0" {
+		formettedTo, err = pkg.ConvertStringToEpochMillis(to)
+		if err != nil {
+			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+		}
+	}
+
 	res, err := h.svc.GetCpuUsage(project, formattedFrom, formettedTo, groupBy)
 
 	if err != nil {
@@ -185,6 +208,15 @@ func (h *MetricsHandler) Getmemoryusage(c *fiber.Ctx) error {
 	from := c.Query("from")
 	to := c.Query("to")
 	groupBy := c.Query("points")
+
+	projectExists, err := h.svc.CheckIfProjectExists(project)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if !projectExists {
+		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
+	}
+
 	formattedFrom, err := pkg.ConvertStringToEpochMillis(from)
 	if err != nil {
 		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
@@ -200,4 +232,23 @@ func (h *MetricsHandler) Getmemoryusage(c *fiber.Ctx) error {
 	}
 
 	return SuccessResponse(c, fiber.StatusOK, "success", res)
+}
+
+func (h *MetricsHandler) GetMetricsMinMaxDates(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+	exists, err := h.svc.CheckIfProjectExists(project)
+	if err != nil {
+		return InternalError(c, err)
+	}
+	if !exists {
+		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
+	}
+	dates, err := h.svc.GetMetricsMinMaxDate(project)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return SuccessResponse(c, fiber.StatusOK, "Metrics dates retrieved successfully", dates)
 }

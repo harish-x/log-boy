@@ -109,17 +109,19 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
 
   if (!latestMetrics) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-accent rounded-lg mt-2">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Waiting for metrics data...</p>
+      <div className="w-full mx-auto p-6 my-2">
+        <div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-accent rounded-lg">
+          <div className="text-center ">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-gray-600">Waiting for metrics data...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-6 min-h-screen mt-2">
+    <div className="w-full mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Live System Metrics</h1>
@@ -135,7 +137,7 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
 
       {/* Current Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">CPU Usage</p>
@@ -151,7 +153,15 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
                 {performanceStats.averageCpu}%
               </p>
             </div>
-            <div className={`p-3 ${performanceStats.averageCpu < 50 ? "bg-blue-600/20 dark:bg-cpuusage/20" : performanceStats.averageCpu < 80 ? "bg-warn/20" : "bg-destructive/20"} rounded-full`}>
+            <div
+              className={`p-3 ${
+                performanceStats.averageCpu < 50
+                  ? "bg-blue-600/20 dark:bg-cpuusage/20"
+                  : performanceStats.averageCpu < 80
+                  ? "bg-warn/20"
+                  : "bg-destructive/20"
+              } rounded-full`}
+            >
               <div
                 className={`w-6 h-6 ${
                   performanceStats.averageCpu < 50 ? " bg-blue-600 dark:bg-cpuusage" : performanceStats.averageCpu < 80 ? "bg-warn" : "bg-destructive"
@@ -161,7 +171,7 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
@@ -199,7 +209,7 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Memory</p>
@@ -211,7 +221,7 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Free Memory</p>
@@ -225,11 +235,11 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8">
         {/* Historical Usage Chart */}
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Usage History</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Live Metrics</h2>
             <div className="flex items-center gap-2">
               <Select value={maxDataPoints} onValueChange={(value) => setMaxDataPoints(Number(value))}>
                 <SelectTrigger className="w-[180px]">
@@ -277,9 +287,9 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
         </div>
 
         {/* CPU Cores Usage / Overall CPU Usage */}
-        <div className="bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+        <div className="bg-card p-6 rounded-xl shadow-sm border ">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">CPU Analysis</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Live Cpu Core Usage</h2>
 
             <Select value={cpuChartView} onValueChange={setCpuChartView}>
               <SelectTrigger className="w-[180px]">
@@ -288,8 +298,8 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>CPU View</SelectLabel>
-                  <SelectItem value="coreUsage">Core Usage</SelectItem>
-                  <SelectItem value="overallUsage">Overall CPU Usage</SelectItem>
+                  <SelectItem value="coreUsage">Bar Graph</SelectItem>
+                  <SelectItem value="overallUsage">Area Graph</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -341,7 +351,7 @@ const LiveMetrics = ({ metrics = [], performanceStats = {} }) => {
       </div>
 
       {/* Performance Indicator */}
-      <div className="mt-8 bg-white dark:bg-accent p-6 rounded-xl shadow-sm border border-primary/[0.20]">
+      <div className="mt-8 bg-card p-6 rounded-xl shadow-sm border">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">System Status</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-center gap-3">

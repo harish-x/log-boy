@@ -16,3 +16,8 @@ type MemoryUsagepoint struct {
 	Timestamp int64   `json:"timestamp"`
 	Average   float64 `json:"average"`
 }
+
+type MinMaxDate struct {
+	MinDate string `json:"minDate"`
+	MaxDate string `json:"maxDate"`
+}

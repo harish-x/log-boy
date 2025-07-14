@@ -5,6 +5,11 @@ import { apiTokenRequest } from "@/authConfig";
 import { toast } from "sonner";
 import LiveMetrics from "@/components/metrics/LiveMetrics";
 import CpuUsageGraph from "@/components/metrics/CpuUsageGraph";
+import MemoryusageGraph from "@/components/metrics/MemoryUsageGraph";
+import { useGetProjectByNameQuery } from "@/services/ProjectService";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Monitoring = () => {
   const { projectName } = useParams();
@@ -18,7 +23,41 @@ const Monitoring = () => {
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttempts = useRef(0);
 
+  const { isLoading: isLoadingProject, isError: isErrorProject, error: projecterror } = useGetProjectByNameQuery(projectName);
 
+  console.log(projecterror?.data?.message);
+
+  if (isLoadingProject) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
+        <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
+          <span className="loader"></span>
+        </div>
+      </div>
+    );
+  }
+  if (isErrorProject && projecterror?.data?.message === "Project not found") {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-5rem)] mx-auto rounded-2xl border border-primary/[0.20]">
+        <Card className="max-w-md mx-auto text-center">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 mr-2 text-destructive" /> Project Not Found
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">The project "{projectName}" could not be found or loaded.</p>
+            <p className="text-muted-foreground mt-2">Please check the project name or try again later.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => window.history.back()} variant="outline" className="w-full">
+              Go Back
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
   const memoizedMetrics = useMemo(() => {
     return metricsData;
   }, [metricsData]);
@@ -29,28 +68,25 @@ const Monitoring = () => {
         return prev;
       }
 
-      const newLogs = [newMetrics, ...prev];
+      const newMerics = [newMetrics, ...prev];
       // Keep only latest 100 metrics
-      const trimmedLogs = newLogs.slice(0, 100);
+      const trimmedMetrics = newMerics.slice(0, 100);
 
       // Update last update time
       setLastUpdateTime(Date.now());
 
-      return trimmedLogs;
+      return trimmedMetrics;
     });
   }, []);
-
 
   const updateConnectionStatus = useCallback((status) => {
     setIsConnected(status);
   }, []);
 
-
   const clearMetrics = useCallback(() => {
     setMetricsData([]);
     setLastUpdateTime(null);
   }, []);
-
 
   const setupSSEConnection = useCallback(async () => {
     // Cleanup existing connections
@@ -83,7 +119,7 @@ const Monitoring = () => {
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        toast.success(`Connected to ${projectName} log stream`);
+        toast.success(`Connected to ${projectName} Live Metrics`);
         isConnectingRef.current = false;
         reconnectAttempts.current = 0;
         updateConnectionStatus(true);
@@ -111,6 +147,7 @@ const Monitoring = () => {
       eventSource.onerror = (err) => {
         isConnectingRef.current = false;
         updateConnectionStatus(false);
+        console.error("SSE connection error:", err);
 
         if (reconnectAttempts.current > 0) {
           console.warn("SSE connection lost, attempting to reconnect...");
@@ -137,7 +174,7 @@ const Monitoring = () => {
     } catch (error) {
       isConnectingRef.current = false;
       updateConnectionStatus(false);
-      toast.error("Failed to establish connection to log stream");
+      toast.error("Failed to establish connection to Metrics stream");
 
       // Retry with exponential backoff
       reconnectAttempts.current++;
@@ -186,7 +223,6 @@ const Monitoring = () => {
     };
   }, [handleVisibilityChange]);
 
-
   const performanceStats = useMemo(() => {
     if (metricsData.length === 0) return null;
 
@@ -203,7 +239,7 @@ const Monitoring = () => {
     };
   }, [metricsData]);
 
-const liveMetricsProps = useMemo(
+  const liveMetricsProps = useMemo(
     () => ({
       metrics: memoizedMetrics,
       performanceStats,
@@ -213,12 +249,12 @@ const liveMetricsProps = useMemo(
     [memoizedMetrics, performanceStats, clearMetrics, projectName]
   );
 
-
   return (
     <>
       <div className="projects-container bg-background px-2 w-[98%] mx-auto rounded-2xl border border-primary/[0.20] min-h-screen">
         <LiveMetrics {...liveMetricsProps} />
-        <CpuUsageGraph/>
+        <CpuUsageGraph />
+        <MemoryusageGraph />
       </div>
     </>
   );

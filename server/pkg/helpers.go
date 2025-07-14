@@ -59,3 +59,9 @@ func ConvertStringToEpochMillis(d string) (int64, error) {
 	epochMillis := t.UnixNano() / int64(time.Millisecond)
 	return epochMillis, nil
 }
+
+
+func ConvertEpochMillisToString(epochMillis int64) string {
+	t := time.Unix(0, epochMillis*int64(time.Millisecond))
+	return t.Format("2006-01-02-15")
+}

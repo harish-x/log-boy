@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"server/internal/api/dto"
+	"server/pkg"
 
 	"github.com/elastic/go-elasticsearch/v9"
 )
@@ -31,6 +32,11 @@ func (m *metricsES) GetCpuUsages(project string, from int64, to int64, groupBy s
 		return nil, fmt.Errorf("invalid groupBy value: must be 'hour' or 'day'")
 	}
 
+	lteValue := interface{}(to)
+	if to == 0 {
+		lteValue = "now"
+	}
+
 	// Elasticsearch query
 	query := map[string]interface{}{
 		"size": 0,
@@ -46,7 +52,7 @@ func (m *metricsES) GetCpuUsages(project string, from int64, to int64, groupBy s
 						"range": map[string]interface{}{
 							"cpuUsage.timestamp": map[string]interface{}{
 								"gte": from,
-								"lte": to,
+								"lte": lteValue,
 							},
 						},
 					},
@@ -229,4 +235,75 @@ func (m *metricsES) GetMemoryUsages(project string, from int64, to int64, groupB
 		})
 	}
 	return results, nil
+}
+
+func (m *metricsES) GetMetricsMinMaxDate(project string) ([]*dto.MinMaxDate, error) {
+	// query
+	query := map[string]interface{}{
+		"size": 0,
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"serviceName": project,
+			},
+		},
+		"aggs": map[string]interface{}{
+			"min_date": map[string]interface{}{
+				"min": map[string]interface{}{
+					"field": "memoryUsage.timestamp",
+				},
+			},
+			"max_date": map[string]interface{}{
+				"max": map[string]interface{}{
+					"field": "memoryUsage.timestamp",
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return nil, fmt.Errorf("encoding query: %w", err)
+	}
+
+	res, err := m.es.Search(
+		m.es.Search.WithContext(context.Background()),
+		m.es.Search.WithIndex("m-"+project+"-*"),
+		m.es.Search.WithBody(&buf),
+		m.es.Search.WithTrackTotalHits(true),
+		m.es.Search.WithPretty(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("es search failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	var esResp struct {
+		Aggregations struct {
+			MinDate struct {
+				Value float64 `json:"value"`
+			} `json:"min_date"`
+			MaxDate struct {
+				Value float64 `json:"value"`
+			} `json:"max_date"`
+		} `json:"aggregations"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&esResp); err != nil {
+		return nil, fmt.Errorf("error decoding response: %w", err)
+	}
+	log.Print(esResp)
+	if esResp.Aggregations.MinDate.Value == 0 && esResp.Aggregations.MaxDate.Value == 0 {
+		return nil, fmt.Errorf("no metrics found for the project")
+	}
+
+	if esResp.Aggregations.MinDate.Value == 0 || esResp.Aggregations.MaxDate.Value == 0 {
+		return nil, fmt.Errorf("invalid date range: min or max date is zero")
+	}
+
+	return []*dto.MinMaxDate{
+		{
+			MinDate: pkg.ConvertEpochMillisToString(int64(esResp.Aggregations.MinDate.Value)),
+			MaxDate: pkg.ConvertEpochMillisToString(int64(esResp.Aggregations.MaxDate.Value)),
+		},
+	}, nil
 }

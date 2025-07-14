@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { CalendarDays, CalendarIcon, Clock, RefreshCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,42 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "react-router-dom";
-import { useLazyGetCpuUsageQuery } from "@/services/metricsServices";
+import { useLazyGetMemoryUsageQuery } from "@/services/metricsServices";
+import { useNavigate } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const CpuUsageGraph = () => {
-  const [getCpuUsage, { data: apiData, isLoading, isFetching, isError }] = useLazyGetCpuUsageQuery();
+const MemoryusageGraph = () => {
+  const [getMemoryusage, { data: apiData, isLoading, isFetching, isError, error }] = useLazyGetMemoryUsageQuery();
   const { projectName } = useParams();
+const navigate = useNavigate();
+  if (isError && error?.data?.message === "Project not found") {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-5rem)] mx-auto rounded-2xl border border-primary/[0.20]">
+        <Card className="max-w-md mx-auto text-center">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 mr-2 text-destructive" /> Project Not Found
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">The project "{projectName}" could not be found or loaded.</p>
+            <p className="text-muted-foreground mt-2">Please check the project name or try again later.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => window.history.back()} variant="outline" className="w-full">
+              Go Back
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
+  if(isError && error?.data?.message !== "Project not found"){
+   navigate("/404");
+  }
   const transformData = (apiResponse) => {
     return apiResponse.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
   };
@@ -30,6 +57,7 @@ const CpuUsageGraph = () => {
   const [openc1, setOpenc1] = useState(false);
   const [openc2, setOpenc2] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toLocaleString());
+
   const formatDateForAPI = (date) => {
     return date.toISOString().split("T")[0];
   };
@@ -39,7 +67,7 @@ const CpuUsageGraph = () => {
   };
 
   const fetchData = () => {
-    getCpuUsage({
+    getMemoryusage({
       project: projectName,
       from: formatDateForAPI(fromDate) + "-" + fromTime,
       to: formatDateForAPI(toDate) + "-" + toTime,
@@ -78,38 +106,36 @@ const CpuUsageGraph = () => {
       return (
         <div className="bg-foreground p-3 border rounded-lg shadow-lg">
           <p className="font-medium text-accent">{`Time: ${data.timeLabel}`}</p>
-          <p className="text-blue-600">{`Memory Usage: ${payload[0].value.toFixed(2)}%`}</p>
+          <p className="text-accent">{`Memory Usage: ${payload[0].value.toFixed(2)}%`}</p>
         </div>
       );
     }
     return null;
   };
 
-  const getAverageCPU = () => {
+  const getAverageMemory = () => {
     if (!data || data.length === 0) return 0;
     const validData = data.filter((item) => item.average !== null);
     const sum = validData.reduce((acc, item) => acc + item.average, 0);
     return (sum / validData.length).toFixed(2);
   };
 
-  const getMaxCPU = () => {
+  const getmaxMemory = () => {
     if (!data || data.length === 0) return 0;
     const validData = data.filter((item) => item.average !== null);
     return Math.max(...validData.map((item) => item.average)).toFixed(2);
   };
 
-
-
   return (
-    <div className="w-full  mx-auto p-6">
+    <div className="w-full mx-auto p-6">
       {/* Controls */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5" />
-            CPU Usage Metrics
+            Memory Usage Metrics
           </CardTitle>
-          <CardDescription className={"mt-1"}>Monitor CPU performance over time with customizable date ranges and intervals</CardDescription>
+          <CardDescription className={"mt-1"}>Monitor Memory performance over time with customizable date ranges and intervals</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4 items-end">
@@ -262,9 +288,9 @@ const CpuUsageGraph = () => {
         {/* Graph */}
 
         <CardHeader className={"mt-5"}>
-          <CardTitle>CPU Usage Over Time</CardTitle>
+          <CardTitle>Memory Usage Over Time</CardTitle>
           <CardDescription>
-            {timeRange === "hour" ? "Hourly" : "Daily"} CPU usage metrics for {projectName}
+            {timeRange === "hour" ? "Hourly" : "Daily"} memory usage metrics for {projectName}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -277,9 +303,9 @@ const CpuUsageGraph = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="lineFillGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                    <linearGradient id="lineFillGradient2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#82ca9d" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#82ca9d" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -291,12 +317,12 @@ const CpuUsageGraph = () => {
                   <Area
                     type="monotone"
                     dataKey="average"
-                    stroke="#2563eb"
+                    stroke="#82ca9d"
                     strokeWidth={2}
-                    fill="url(#lineFillGradient)"
+                    fill="url(#lineFillGradient2)"
                     fillOpacity={1}
-                    dot={{ fill: "#2563eb", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: "#2563eb", strokeWidth: 2 }}
+                    dot={{ fill: "#82ca9d", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: "#82ca9d", strokeWidth: 2 }}
                     name="CPU Usage (%)"
                   />
                 </AreaChart>
@@ -311,8 +337,8 @@ const CpuUsageGraph = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Average CPU</p>
-                  <p className="text-2xl font-bold text-[#2563eb]">{getAverageCPU()}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Average Memory</p>
+                  <p className="text-2xl font-bold text-[#82ca9d]">{getAverageMemory()}%</p>
                 </div>
                 <Badge variant="secondary">AVG</Badge>
               </div>
@@ -323,8 +349,8 @@ const CpuUsageGraph = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Peak CPU</p>
-                  <p className="text-2xl font-bold text-destructive">{getMaxCPU()}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Peak Memory</p>
+                  <p className="text-2xl font-bold text-destructive">{getmaxMemory()}%</p>
                 </div>
                 <Badge variant="destructive">MAX</Badge>
               </div>
@@ -336,4 +362,4 @@ const CpuUsageGraph = () => {
   );
 };
 
-export default CpuUsageGraph;
+export default MemoryusageGraph;
