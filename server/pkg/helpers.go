@@ -51,13 +51,7 @@ func ConvertStringToDate(d string) (time.Time, error) {
 
 func ConvertStringToEpochMillis(d string) (int64, error) {
 	layout := "2006-01-02-15"
-
-	ist, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		return 0, fmt.Errorf("failed to load timezone: %v", err)
-	}
-
-	t, err := time.ParseInLocation(layout, d, ist)
+	t, err := time.ParseInLocation(layout, d, time.UTC)
 	if err != nil {
 		return 0, fmt.Errorf("invalid date format")
 	}

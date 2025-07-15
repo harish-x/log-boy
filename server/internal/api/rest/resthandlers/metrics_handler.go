@@ -8,6 +8,7 @@ import (
 	"server/internal/services"
 	serversentevents "server/internal/services/server_sent_events"
 	"server/pkg"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -178,16 +179,16 @@ func (h *MetricsHandler) GetCpuUsage(c *fiber.Ctx) error {
 	}
 
 	if from != "" {
-		formattedFrom, err = pkg.ConvertStringToEpochMillis(from)
+		formattedFrom, err = strconv.ParseInt(from, 10, 64)
 		if err != nil {
-			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+			return ErrorMessage(c, fiber.StatusBadRequest, "invalid from date")
 		}
 	}
 
 	if to != "0" {
-		formettedTo, err = pkg.ConvertStringToEpochMillis(to)
+		formettedTo, err = strconv.ParseInt(to, 10, 64)
 		if err != nil {
-			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+			return ErrorMessage(c, fiber.StatusBadRequest, "invalid to date")
 		}
 	}
 	log.Printf("Formatted From: %d, Formatted To: %d", formattedFrom, formettedTo)
@@ -218,14 +219,15 @@ func (h *MetricsHandler) Getmemoryusage(c *fiber.Ctx) error {
 		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
 	}
 
-	formattedFrom, err := pkg.ConvertStringToEpochMillis(from)
+	formattedFrom, err := strconv.ParseInt(from, 10, 64)
 	if err != nil {
-		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+		return ErrorMessage(c, fiber.StatusBadRequest, "invalid from date")
 	}
-	formettedTo, err := pkg.ConvertStringToEpochMillis(to)
+	formettedTo, err := strconv.ParseInt(to, 10, 64)
 	if err != nil {
-		return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
+		return ErrorMessage(c, fiber.StatusBadRequest, "invalid to date")
 	}
+	log.Printf("Formatted From: %d, Formatted To: %d", formattedFrom, formettedTo)
 	res, err := h.svc.GetMemoryUsage(project, formattedFrom, formettedTo, groupBy)
 
 	if err != nil {
@@ -249,7 +251,7 @@ func (h *MetricsHandler) GetMetricsMinMaxDates(c *fiber.Ctx) error {
 	}
 	dates, err := h.svc.GetMetricsMinMaxDate(project)
 	if err != nil {
-		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+		return ErrorMessage(c, fiber.StatusNotFound, err.Error())
 	}
 	return SuccessResponse(c, fiber.StatusOK, "Metrics dates retrieved successfully", dates)
 }

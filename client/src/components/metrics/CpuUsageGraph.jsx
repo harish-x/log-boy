@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
-import { CalendarDays, CalendarIcon, Clock, RefreshCcwIcon } from "lucide-react";
+import { CpuIcon, CalendarIcon, Clock, RefreshCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseApiDate, getAvailableHours } from "@/lib/helpers";
 
-
 const CpuUsageGraph = () => {
   const [getCpuUsage, { data: apiData, isLoading, isFetching, isError }] = useLazyGetCpuUsageQuery();
   const { projectName } = useParams();
@@ -23,6 +22,16 @@ const CpuUsageGraph = () => {
 
   const minDate = minMaxData?.data?.[0]?.minDate ? parseApiDate(minMaxData.data[0].minDate) : null;
   const maxDate = minMaxData?.data?.[0]?.maxDate ? parseApiDate(minMaxData.data[0].maxDate) : null;
+
+  const [data, setData] = useState(apiData?.data);
+  const [timeRange, setTimeRange] = useState("hour");
+  const [fromDate, setFromDate] = useState(new Date(Date.now() - 24 * 60 * 60 * 1000)); // Default to 24 hours ago
+  const [toDate, setToDate] = useState(new Date(Date.now())); // Default to today
+  const [fromTime, setFromTime] = useState("0");
+  const [toTime, setToTime] = useState(new Date().getHours().toString());
+  const [openc1, setOpenc1] = useState(false);
+  const [openc2, setOpenc2] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toLocaleString());
 
   useEffect(() => {
     if (minDate && maxDate) {
@@ -38,18 +47,9 @@ const CpuUsageGraph = () => {
   }, [minDate, maxDate]);
 
   const transformData = (apiResponse) => {
-    return apiResponse.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
+    return apiResponse?.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
   };
 
-  const [data, setData] = useState(apiData?.data);
-  const [timeRange, setTimeRange] = useState("hour");
-  const [fromDate, setFromDate] = useState(new Date(Date.now() - 24 * 60 * 60 * 1000)); // Default to 24 hours ago
-  const [toDate, setToDate] = useState(new Date(Date.now())); // Default to today
-  const [fromTime, setFromTime] = useState("0");
-  const [toTime, setToTime] = useState(new Date().getHours().toString());
-  const [openc1, setOpenc1] = useState(false);
-  const [openc2, setOpenc2] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toLocaleString());
   const formatDateForAPI = (date) => {
     return date.toISOString().split("T")[0];
   };
@@ -59,10 +59,18 @@ const CpuUsageGraph = () => {
   };
 
   const fetchData = () => {
+    const fromDateTime = new Date(fromDate);
+    fromDateTime.setHours(parseInt(fromTime, 10), 0, 0, 0);
+
+    const toDateTime = new Date(toDate);
+    toDateTime.setHours(parseInt(toTime, 10), 59, 59, 999);
+
+    const fromEpoch = fromDateTime.getTime();
+    const toEpoch = toDateTime.getTime();
     getCpuUsage({
       project: projectName,
-      from: formatDateForAPI(fromDate) + "-" + fromTime,
-      to: formatDateForAPI(toDate) + "-" + toTime,
+      from: fromEpoch,
+      to: toEpoch,
       groupBy: timeRange,
     })
       .unwrap()
@@ -92,12 +100,22 @@ const CpuUsageGraph = () => {
     }
   };
 
+  function formatLocalTime(timeString) {
+    if (timeRange === "hour") {
+      const date = new Date(timeString);
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else if (timeRange === "day") {
+      const date = new Date(timeString);
+      return date.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
+    }
+  }
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div className="bg-foreground p-3 border rounded-lg shadow-lg">
-          <p className="font-medium text-accent">{`Time: ${data.timeLabel}`}</p>
+          <p className="font-medium text-accent">{`Time: ${formatLocalTime(data.timeLabel)}`}</p>
           <p className="text-blue-600">{`Memory Usage: ${payload[0].value.toFixed(2)}%`}</p>
         </div>
       );
@@ -105,6 +123,7 @@ const CpuUsageGraph = () => {
     return null;
   };
 
+  // Calculation functions for stats cards
   const getAverageCPU = () => {
     if (!data || data.length === 0) return 0;
     const validData = data.filter((item) => item.average !== null);
@@ -125,8 +144,6 @@ const CpuUsageGraph = () => {
   const handleFromDateChange = (date) => {
     setFromDate(date);
     const availableHours = getAvailableHours(date, minDate, maxDate);
-
-    // If current time is not available for this date, set to first available hour
     if (!availableHours.includes(parseInt(fromTime))) {
       setFromTime(availableHours[0].toString());
     }
@@ -135,20 +152,55 @@ const CpuUsageGraph = () => {
   const handleToDateChange = (date) => {
     setToDate(date);
     const availableHours = getAvailableHours(date, minDate, maxDate);
-
-    // If current time is not available for this date, set to last available hour
     if (!availableHours.includes(parseInt(toTime))) {
       setToTime(availableHours[availableHours.length - 1].toString());
     }
   };
 
+  const handleRefresh = () => {
+    const now = new Date();
+    setToDate(now);
+    setToTime(now.getHours().toString());
+  };
+  if (apiData?.data === null || apiData?.data?.length === 0) {
+    return (
+      <div className="w-full  mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CpuIcon className="h-5 w-5" />
+              CPU Usage Metrics
+            </CardTitle>
+            <CardDescription className={"mt-1"}>Monitor CPU performance over time with customizable date ranges and intervals</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="date " className="px-1 text-center text-xl">
+                  No Data Available
+                </Label>
+                <Button onClick={handleRefresh} disabled={isLoading} variant="outline">
+                  <RefreshCcwIcon
+                    className={cn("transition-transform", {
+                      "animate-spin": isLoading || isFetching,
+                    })}
+                  />{" "}
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="w-full  mx-auto p-6">
       {/* Controls */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
+            <CpuIcon className="h-5 w-5" />
             CPU Usage Metrics
           </CardTitle>
           <CardDescription className={"mt-1"}>Monitor CPU performance over time with customizable date ranges and intervals</CardDescription>
@@ -160,21 +212,7 @@ const CpuUsageGraph = () => {
                 From Date
               </Label>
               <div className="relative flex gap-2">
-                <Input
-                  value={formatDateForInput(fromDate)}
-                  id="from-date"
-                  className="w-40"
-                  type={"readonly"}
-                  readOnly
-                  min={minDate ? formatDateForInput(minDate) : undefined}
-                  max={maxDate ? formatDateForInput(maxDate) : undefined}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setOpenc1(true);
-                    }
-                  }}
-                />
+                <Input value={formatDateForInput(fromDate)} id="from-date" className="w-40" type={"readonly"} readOnly />
 
                 <Popover open={openc1} onOpenChange={setOpenc1}>
                   <PopoverTrigger asChild>
@@ -306,7 +344,7 @@ const CpuUsageGraph = () => {
               </Select>
             </div>
 
-            <Button onClick={fetchData} disabled={isLoading} variant="outline">
+            <Button onClick={handleRefresh} disabled={isLoading} variant="outline">
               <RefreshCcwIcon
                 className={cn("transition-transform", {
                   "animate-spin": isLoading || isFetching,

@@ -7,9 +7,8 @@ import LiveMetrics from "@/components/metrics/LiveMetrics";
 import CpuUsageGraph from "@/components/metrics/CpuUsageGraph";
 import MemoryusageGraph from "@/components/metrics/MemoryUsageGraph";
 import { useGetProjectByNameQuery } from "@/services/ProjectService";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import ProjectNotFound from "@/components/ProjectNotFound";
+import ProjectError from "@/components/ProjectError";
 
 const Monitoring = () => {
   const { projectName } = useParams();
@@ -25,8 +24,6 @@ const Monitoring = () => {
 
   const { isLoading: isLoadingProject, isError: isErrorProject, error: projecterror } = useGetProjectByNameQuery(projectName);
 
-
- 
   const memoizedMetrics = useMemo(() => {
     return metricsData;
   }, [metricsData]);
@@ -218,37 +215,22 @@ const Monitoring = () => {
     [memoizedMetrics, performanceStats, clearMetrics, projectName]
   );
 
-   if (isLoadingProject) {
-     return (
-       <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-         <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-           <span className="loader"></span>
-         </div>
-       </div>
-     );
-   }
-   if (isErrorProject && projecterror?.data?.message === "Project not found") {
-     return (
-       <div className="flex items-center justify-center h-[calc(100vh-5rem)] mx-auto rounded-2xl border border-primary/[0.20]">
-         <Card className="max-w-md mx-auto text-center">
-           <CardHeader>
-             <CardTitle className="text-2xl flex items-center justify-center">
-               <AlertTriangle className="w-8 h-8 mr-2 text-destructive" /> Project Not Found
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <p className="text-muted-foreground">The project "{projectName}" could not be found or loaded.</p>
-             <p className="text-muted-foreground mt-2">Please check the project name or try again later.</p>
-           </CardContent>
-           <CardFooter>
-             <Button onClick={() => window.history.back()} variant="outline" className="w-full">
-               Go Back
-             </Button>
-           </CardFooter>
-         </Card>
-       </div>
-     );
-   }
+  if (isLoadingProject) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
+        <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
+          <span className="loader"></span>
+        </div>
+      </div>
+    );
+  }
+  if (isErrorProject && projecterror?.data?.message === "Project not found") {
+    return <ProjectError projectName={projectName} />;
+  }
+
+  if (isErrorProject && projecterror?.data?.message !== "Project not found") {
+    return <ProjectNotFound projectName={projectName} />;
+  }
 
   return (
     <>

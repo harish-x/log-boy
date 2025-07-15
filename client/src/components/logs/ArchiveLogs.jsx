@@ -21,7 +21,8 @@ import { useParams } from "react-router-dom";
 import LogLists from "./LogLists";
 import { useDispatch } from "react-redux";
 import { addRecentProjects } from "@/slice/globalState";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import ProjectError from "../ProjectError";
+import ProjectNotFound from "../ProjectNotFound";
 
 const ArchivedLogs = () => {
   const [startDate, setStartDate] = useState(null);
@@ -34,7 +35,7 @@ const ArchivedLogs = () => {
   const dispatch = useDispatch();
   const [getLogs, { data: logsData, isLoading, isFetching: isFetchingLogs, error: logError }] = useLazyGetArchivedLogQuery();
   const { projectName, logName } = useParams();
-  const { isError: isErrorProject, isLoading: isLoadingProject } = useGetProjectByNameQuery(projectName);
+  const { isError: isErrorProject, error: projectError } = useGetProjectByNameQuery(projectName);
   const [getMinMaxDate, { data: minMaxDate, isLoading: isLoadingDate, isError: isErrorDate, isFetching: isFetchingDate }] =
     useLazyGetArchivedLogMinMaxDateQuery();
 
@@ -130,27 +131,12 @@ const ArchivedLogs = () => {
     }
   }
 
-  if (isErrorProject) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-        <Card className="max-w-md mx-auto text-center">
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 mr-2 text-destructive" /> Project Not Found
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">The project "{projectName}" could not be found or loaded.</p>
-            <p className="text-muted-foreground mt-2">Please check the project name or try again later.</p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={() => window.history.back()} variant="outline" className="w-full">
-              Go Back
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
+  if (isErrorProject && projectError.data.message === "Project not found") {
+    return <ProjectNotFound projectName={projectName} />;
+  }
+
+  if (isErrorProject && projectError.data.message !== "Project not found") {
+    return <ProjectError projectName={projectName} />;
   }
   return (
     <div>

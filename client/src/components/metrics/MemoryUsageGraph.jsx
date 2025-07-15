@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
-import { CalendarDays, CalendarIcon, Clock, RefreshCcwIcon } from "lucide-react";
+import { CalendarIcon, Clock, MemoryStickIcon, RefreshCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseApiDate, getAvailableHours } from "@/lib/helpers";
+import ProjectNotFound from "../ProjectNotFound";
 
 const MemoryusageGraph = () => {
   const [getMemoryusage, { data: apiData, isLoading, isFetching, isError, error }] = useLazyGetMemoryUsageQuery();
@@ -24,6 +25,20 @@ const MemoryusageGraph = () => {
 
   const navigate = useNavigate();
 
+  // State for date and time pickers
+  const [fromDate, setFromDate] = useState(new Date(Date.now() - 24 * 60 * 60 * 1000)); // Default to 24 hours ago
+  const [toDate, setToDate] = useState(new Date(Date.now())); // Default to today
+  const [fromTime, setFromTime] = useState("0");
+  const [toTime, setToTime] = useState(new Date().getHours().toString());
+
+  // Other component state
+  const [data, setData] = useState(apiData?.data);
+  const [timeRange, setTimeRange] = useState("hour");
+  const [openc1, setOpenc1] = useState(false);
+  const [openc2, setOpenc2] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toLocaleString());
+
+  // Effect to adjust selected dates if they fall outside the available range from the API
   useEffect(() => {
     if (minDate && maxDate) {
       if (fromDate < minDate || fromDate > maxDate) {
@@ -37,25 +52,13 @@ const MemoryusageGraph = () => {
     }
   }, [minDate, maxDate]);
 
+  // Handle navigation for critical errors
   if (isError && error?.data?.message !== "Project not found") {
     navigate("/404");
   }
+
   const transformData = (apiResponse) => {
-    return apiResponse.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
-  };
-
-  const [data, setData] = useState(apiData?.data);
-  const [timeRange, setTimeRange] = useState("hour");
-  const [fromDate, setFromDate] = useState(new Date(Date.now() - 24 * 60 * 60 * 1000)); // Default to 24 hours ago
-  const [toDate, setToDate] = useState(new Date(Date.now())); // Default to today
-  const [fromTime, setFromTime] = useState("0");
-  const [toTime, setToTime] = useState(new Date().getHours().toString());
-  const [openc1, setOpenc1] = useState(false);
-  const [openc2, setOpenc2] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toLocaleString());
-
-  const formatDateForAPI = (date) => {
-    return date.toISOString().split("T")[0];
+    return apiResponse?.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
   };
 
   const formatDateForInput = (date) => {
@@ -63,10 +66,19 @@ const MemoryusageGraph = () => {
   };
 
   const fetchData = () => {
+    const fromDateTime = new Date(fromDate);
+    fromDateTime.setHours(parseInt(fromTime, 10), 0, 0, 0);
+
+    const toDateTime = new Date(toDate);
+    toDateTime.setHours(parseInt(toTime, 10), 59, 59, 999);
+
+    const fromEpoch = fromDateTime.getTime();
+    const toEpoch = toDateTime.getTime();
+
     getMemoryusage({
       project: projectName,
-      from: formatDateForAPI(fromDate) + "-" + fromTime,
-      to: formatDateForAPI(toDate) + "-" + toTime,
+      from: fromEpoch,
+      to: toEpoch,
       groupBy: timeRange,
     })
       .unwrap()
@@ -75,6 +87,16 @@ const MemoryusageGraph = () => {
         setLastUpdateTime(new Date().toLocaleString());
       });
   };
+
+  function formatLocalTime(timeString) {
+    if (timeRange === "hour") {
+      const date = new Date(timeString);
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else if (timeRange === "day") {
+      const date = new Date(timeString);
+      return date.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
+    }
+  }
 
   useEffect(() => {
     fetchData();
@@ -101,7 +123,7 @@ const MemoryusageGraph = () => {
       const data = payload[0].payload;
       return (
         <div className="bg-foreground p-3 border rounded-lg shadow-lg">
-          <p className="font-medium text-accent">{`Time: ${data.timeLabel}`}</p>
+          <p className="font-medium text-accent">{`Time: ${formatLocalTime(data.timeLabel)}`}</p>
           <p className="text-accent">{`Memory Usage: ${payload[0].value.toFixed(2)}%`}</p>
         </div>
       );
@@ -109,9 +131,11 @@ const MemoryusageGraph = () => {
     return null;
   };
 
+  // Calculation functions for stats cards
   const getAverageMemory = () => {
     if (!data || data.length === 0) return 0;
     const validData = data.filter((item) => item.average !== null);
+    if (validData.length === 0) return 0;
     const sum = validData.reduce((acc, item) => acc + item.average, 0);
     return (sum / validData.length).toFixed(2);
   };
@@ -119,18 +143,16 @@ const MemoryusageGraph = () => {
   const getmaxMemory = () => {
     if (!data || data.length === 0) return 0;
     const validData = data.filter((item) => item.average !== null);
+    if (validData.length === 0) return 0;
     return Math.max(...validData.map((item) => item.average)).toFixed(2);
   };
 
   const availableFromHours = minDate && maxDate ? getAvailableHours(fromDate, minDate, maxDate) : [];
   const availableToHours = minDate && maxDate ? getAvailableHours(toDate, minDate, maxDate) : [];
 
-  // Validate and update time when date changes
   const handleFromDateChange = (date) => {
     setFromDate(date);
     const availableHours = getAvailableHours(date, minDate, maxDate);
-
-    // If current time is not available for this date, set to first available hour
     if (!availableHours.includes(parseInt(fromTime))) {
       setFromTime(availableHours[0].toString());
     }
@@ -139,42 +161,65 @@ const MemoryusageGraph = () => {
   const handleToDateChange = (date) => {
     setToDate(date);
     const availableHours = getAvailableHours(date, minDate, maxDate);
-
-    // If current time is not available for this date, set to last available hour
     if (!availableHours.includes(parseInt(toTime))) {
       setToTime(availableHours[availableHours.length - 1].toString());
     }
   };
 
+  const handleRefresh = () => {
+    const now = new Date();
+    setToDate(now);
+    setToTime(now.getHours().toString());
+  };
+
+  // Render states for error, no data, and the main component
   if (isError && error?.data?.message === "Project not found") {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-5rem)] mx-auto rounded-2xl border border-primary/[0.20]">
-        <Card className="max-w-md mx-auto text-center">
+        <ProjectNotFound />
+      </div>
+    );
+  }
+
+  if (apiData?.data === null || apiData?.data?.length === 0) {
+    return (
+      <div className="w-full mx-auto p-6">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 mr-2 text-destructive" /> Project Not Found
+            <CardTitle className="flex items-center gap-2">
+              <MemoryStickIcon className="h-5 w-5" />
+              Memory Usage Metrics
             </CardTitle>
+            <CardDescription className={"mt-1"}>Monitor Memory performance over time with customizable date ranges and intervals</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">The project "{projectName}" could not be found or loaded.</p>
-            <p className="text-muted-foreground mt-2">Please check the project name or try again later.</p>
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-col gap-3 ">
+                <Label htmlFor="date " className="px-1 text-center text-xl">
+                  No Data Available
+                </Label>
+                <Button onClick={handleRefresh} disabled={isLoading} variant="outline">
+                  <RefreshCcwIcon
+                    className={cn("transition-transform", {
+                      "animate-spin": isLoading || isFetching,
+                    })}
+                  />{" "}
+                  Refresh
+                </Button>
+              </div>
+            </div>
           </CardContent>
-          <CardFooter>
-            <Button onClick={() => window.history.back()} variant="outline" className="w-full">
-              Go Back
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     );
   }
+
   return (
     <div className="w-full mx-auto p-6">
-      {/* Controls */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
+            <MemoryStickIcon className="h-5 w-5" />
             Memory Usage Metrics
           </CardTitle>
           <CardDescription className={"mt-1"}>Monitor Memory performance over time with customizable date ranges and intervals</CardDescription>
@@ -182,28 +227,14 @@ const MemoryusageGraph = () => {
         <CardContent>
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex flex-col gap-3">
-              <Label htmlFor="date" className="px-1">
+              <Label htmlFor="from-date" className="px-1">
                 From Date
               </Label>
               <div className="relative flex gap-2">
-                <Input
-                  value={formatDateForInput(fromDate)}
-                  readOnly
-                  id="from-date"
-                  className="w-40"
-                  min={minDate ? formatDateForInput(minDate) : undefined}
-                  max={maxDate ? formatDateForInput(maxDate) : undefined}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setOpenc1(true);
-                    }
-                  }}
-                />
-
+                <Input value={formatDateForInput(fromDate)} readOnly id="from-date" className="w-40" />
                 <Popover open={openc1} onOpenChange={setOpenc1}>
                   <PopoverTrigger asChild>
-                    <Button id="date-picker" variant="ghost" className="absolute top-1/2 right-2 size-6 -translate-y-1/2">
+                    <Button id="date-picker-from" variant="ghost" className="absolute top-1/2 right-2 size-6 -translate-y-1/2">
                       <CalendarIcon className="size-3.5" />
                       <span className="sr-only">Select date</span>
                     </Button>
@@ -213,13 +244,10 @@ const MemoryusageGraph = () => {
                       mode="single"
                       selected={fromDate}
                       onSelect={(date) => {
-                        handleFromDateChange(date);
+                        if (date) handleFromDateChange(date);
                         setOpenc1(false);
                       }}
-                      disabled={(date) => {
-                        if (!minDate || !maxDate) return false;
-                        return date < minDate || date > maxDate;
-                      }}
+                      disabled={(date) => (minDate && date < minDate) || (maxDate && date > maxDate)}
                       fromDate={minDate}
                       toDate={maxDate}
                     />
@@ -245,28 +273,14 @@ const MemoryusageGraph = () => {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Label htmlFor="date" className="px-1">
+              <Label htmlFor="to-date" className="px-1">
                 To Date
               </Label>
               <div className="relative flex gap-2">
-                <Input
-                  value={formatDateForInput(toDate)}
-                  readOnly
-                  id="to-date"
-                  className="w-40"
-                  min={minDate ? formatDateForInput(minDate) : undefined}
-                  max={maxDate ? formatDateForInput(maxDate) : undefined}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setOpenc1(true);
-                    }
-                  }}
-                />
-
+                <Input value={formatDateForInput(toDate)} readOnly id="to-date" className="w-40" />
                 <Popover open={openc2} onOpenChange={setOpenc2}>
                   <PopoverTrigger asChild>
-                    <Button id="date-picker" variant="ghost" className="absolute top-1/2 right-2 size-6 -translate-y-1/2">
+                    <Button id="date-picker-to" variant="ghost" className="absolute top-1/2 right-2 size-6 -translate-y-1/2">
                       <CalendarIcon className="size-3.5" />
                       <span className="sr-only">Select date</span>
                     </Button>
@@ -276,13 +290,10 @@ const MemoryusageGraph = () => {
                       mode="single"
                       selected={toDate}
                       onSelect={(date) => {
-                        handleToDateChange(date);
+                        if (date) handleToDateChange(date);
                         setOpenc2(false);
                       }}
-                      disabled={(date) => {
-                        if (!minDate || !maxDate) return false;
-                        return date < minDate || date > maxDate;
-                      }}
+                      disabled={(date) => (minDate && date < minDate) || (maxDate && date > maxDate)}
                       fromDate={minDate}
                       toDate={maxDate}
                     />
@@ -330,7 +341,7 @@ const MemoryusageGraph = () => {
               </Select>
             </div>
 
-            <Button onClick={fetchData} disabled={isLoading} variant="outline">
+            <Button onClick={handleRefresh} disabled={isLoading} variant="outline" className="flex h-auto">
               <RefreshCcwIcon
                 className={cn("transition-transform", {
                   "animate-spin": isLoading || isFetching,
@@ -342,7 +353,6 @@ const MemoryusageGraph = () => {
         </CardContent>
 
         {/* Graph */}
-
         <CardHeader className={"mt-5"}>
           <CardTitle>Memory Usage Over Time</CardTitle>
           <CardDescription>
@@ -366,10 +376,9 @@ const MemoryusageGraph = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="timeLabel" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-                  <YAxis label={{ value: "CPU Usage (%)", angle: -90, position: "insideLeft" }} tick={{ fontSize: 12 }} />
+                  <YAxis label={{ value: "Memory Usage (%)", angle: -90, position: "insideLeft" }} tick={{ fontSize: 12 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-
                   <Area
                     type="monotone"
                     dataKey="average"
@@ -379,7 +388,7 @@ const MemoryusageGraph = () => {
                     fillOpacity={1}
                     dot={{ fill: "#82ca9d", strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6, stroke: "#82ca9d", strokeWidth: 2 }}
-                    name="CPU Usage (%)"
+                    name="Memory Usage (%)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -388,7 +397,7 @@ const MemoryusageGraph = () => {
         </CardContent>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 pb-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -400,7 +409,6 @@ const MemoryusageGraph = () => {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
