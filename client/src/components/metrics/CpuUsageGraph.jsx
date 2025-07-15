@@ -8,14 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "react-router-dom";
-import { useLazyGetCpuUsageQuery } from "@/services/metricsServices";
+import { useGetMetricsMinMaxdateQuery, useLazyGetCpuUsageQuery } from "@/services/metricsServices";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { parseApiDate, getAvailableHours } from "@/lib/helpers";
+
 
 const CpuUsageGraph = () => {
   const [getCpuUsage, { data: apiData, isLoading, isFetching, isError }] = useLazyGetCpuUsageQuery();
   const { projectName } = useParams();
+
+  const { data: minMaxData } = useGetMetricsMinMaxdateQuery(projectName);
+
+  const minDate = minMaxData?.data?.[0]?.minDate ? parseApiDate(minMaxData.data[0].minDate) : null;
+  const maxDate = minMaxData?.data?.[0]?.maxDate ? parseApiDate(minMaxData.data[0].maxDate) : null;
+
+  useEffect(() => {
+    if (minDate && maxDate) {
+      if (fromDate < minDate || fromDate > maxDate) {
+        setFromDate(minDate);
+        setFromTime(minDate.getHours().toString());
+      }
+      if (toDate < minDate || toDate > maxDate) {
+        setToDate(maxDate);
+        setToTime(maxDate.getHours().toString());
+      }
+    }
+  }, [minDate, maxDate]);
 
   const transformData = (apiResponse) => {
     return apiResponse.map((bucket) => ({ timeLabel: bucket.timeLabel, average: bucket.average }));
@@ -98,7 +118,29 @@ const CpuUsageGraph = () => {
     return Math.max(...validData.map((item) => item.average)).toFixed(2);
   };
 
+  const availableFromHours = minDate && maxDate ? getAvailableHours(fromDate, minDate, maxDate) : [];
+  const availableToHours = minDate && maxDate ? getAvailableHours(toDate, minDate, maxDate) : [];
 
+  // Validate and update time when date changes
+  const handleFromDateChange = (date) => {
+    setFromDate(date);
+    const availableHours = getAvailableHours(date, minDate, maxDate);
+
+    // If current time is not available for this date, set to first available hour
+    if (!availableHours.includes(parseInt(fromTime))) {
+      setFromTime(availableHours[0].toString());
+    }
+  };
+
+  const handleToDateChange = (date) => {
+    setToDate(date);
+    const availableHours = getAvailableHours(date, minDate, maxDate);
+
+    // If current time is not available for this date, set to last available hour
+    if (!availableHours.includes(parseInt(toTime))) {
+      setToTime(availableHours[availableHours.length - 1].toString());
+    }
+  };
 
   return (
     <div className="w-full  mx-auto p-6">
@@ -120,9 +162,12 @@ const CpuUsageGraph = () => {
               <div className="relative flex gap-2">
                 <Input
                   value={formatDateForInput(fromDate)}
-                  onChange={(e) => setFromDate(new Date(e.target.value))}
                   id="from-date"
                   className="w-40"
+                  type={"readonly"}
+                  readOnly
+                  min={minDate ? formatDateForInput(minDate) : undefined}
+                  max={maxDate ? formatDateForInput(maxDate) : undefined}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
@@ -142,11 +187,16 @@ const CpuUsageGraph = () => {
                     <Calendar
                       mode="single"
                       selected={fromDate}
-                      captionLayout="dropdown"
                       onSelect={(date) => {
-                        setFromDate(date);
+                        handleFromDateChange(date);
                         setOpenc1(false);
                       }}
+                      disabled={(date) => {
+                        if (!minDate || !maxDate) return false;
+                        return date < minDate || date > maxDate;
+                      }}
+                      fromDate={minDate}
+                      toDate={maxDate}
                     />
                   </PopoverContent>
                 </Popover>
@@ -160,9 +210,9 @@ const CpuUsageGraph = () => {
                   <SelectValue>{fromTime}:00</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      {i}:00
+                  {availableFromHours.map((hour) => (
+                    <SelectItem key={hour} value={hour.toString()}>
+                      {hour}:00
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -176,13 +226,16 @@ const CpuUsageGraph = () => {
               <div className="relative flex gap-2">
                 <Input
                   value={formatDateForInput(toDate)}
-                  onChange={(e) => setToDate(new Date(e.target.value))}
                   id="to-date"
                   className="w-40"
+                  type={"readonly"}
+                  readOnly
+                  min={minDate ? formatDateForInput(minDate) : undefined}
+                  max={maxDate ? formatDateForInput(maxDate) : undefined}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
-                      setOpenc1(true);
+                      setOpenc2(true);
                     }
                   }}
                 />
@@ -198,11 +251,16 @@ const CpuUsageGraph = () => {
                     <Calendar
                       mode="single"
                       selected={toDate}
-                      captionLayout="dropdown"
                       onSelect={(date) => {
-                        setToDate(date);
+                        handleToDateChange(date);
                         setOpenc2(false);
                       }}
+                      disabled={(date) => {
+                        if (!minDate || !maxDate) return false;
+                        return date < minDate || date > maxDate;
+                      }}
+                      fromDate={minDate}
+                      toDate={maxDate}
                     />
                   </PopoverContent>
                 </Popover>
@@ -216,9 +274,9 @@ const CpuUsageGraph = () => {
                   <SelectValue>{toTime}:00</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      {i}:00
+                  {availableToHours.map((hour) => (
+                    <SelectItem key={hour} value={hour.toString()}>
+                      {hour}:00
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -115,7 +115,7 @@ func (m *metricsES) GetCpuUsages(project string, from int64, to int64, groupBy s
 	if err := json.NewDecoder(res.Body).Decode(&esResp); err != nil {
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
-	log.Print(esResp)
+
 	var results []*dto.CpuUsagePoint
 	for _, bucket := range esResp.Aggregations.ByTime.Buckets {
 		if bucket.AvgCPU.Value == 0 {
@@ -221,7 +221,7 @@ func (m *metricsES) GetMemoryUsages(project string, from int64, to int64, groupB
 	if err := json.NewDecoder(res.Body).Decode(&esResp); err != nil {
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
-	log.Print(esResp)
+
 	var results []*dto.MemoryUsagepoint
 	for _, bucket := range esResp.Aggregations.ByTime.Buckets {
 		if bucket.AvgCPU.Value == 0 {

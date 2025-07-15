@@ -190,6 +190,7 @@ func (h *MetricsHandler) GetCpuUsage(c *fiber.Ctx) error {
 			return ErrorMessage(c, fiber.StatusBadRequest, err.Error())
 		}
 	}
+	log.Printf("Formatted From: %d, Formatted To: %d", formattedFrom, formettedTo)
 
 	res, err := h.svc.GetCpuUsage(project, formattedFrom, formettedTo, groupBy)
 

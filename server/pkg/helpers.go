@@ -51,7 +51,13 @@ func ConvertStringToDate(d string) (time.Time, error) {
 
 func ConvertStringToEpochMillis(d string) (int64, error) {
 	layout := "2006-01-02-15"
-	t, err := time.ParseInLocation(layout, d, time.UTC)
+
+	ist, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return 0, fmt.Errorf("failed to load timezone: %v", err)
+	}
+
+	t, err := time.ParseInLocation(layout, d, ist)
 	if err != nil {
 		return 0, fmt.Errorf("invalid date format")
 	}
@@ -59,7 +65,6 @@ func ConvertStringToEpochMillis(d string) (int64, error) {
 	epochMillis := t.UnixNano() / int64(time.Millisecond)
 	return epochMillis, nil
 }
-
 
 func ConvertEpochMillisToString(epochMillis int64) string {
 	t := time.Unix(0, epochMillis*int64(time.Millisecond))
