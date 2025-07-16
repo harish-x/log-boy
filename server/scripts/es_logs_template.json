@@ -1,5 +1,7 @@
 {
-  "index_patterns": ["logs-*"],
+  "index_patterns": [
+    "logs-*"
+  ],
   "priority": 501,
   "template": {
     "settings": {
@@ -60,6 +62,26 @@
           "type": "ip"
         },
         "userAgent": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "responseStatus": {
+          "type": "text",
+          "analyzer": "standard",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "responseTime": {
           "type": "text",
           "analyzer": "standard",
           "fields": {

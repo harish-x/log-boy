@@ -1,7 +1,7 @@
-genLogsProtoPS:
+genLogsProto:
 	@echo "Generating logs.pb.go and logs_grpc.pb.go"
 	@echo "----------------------------------------"
-	@mkdir -p ../internal/services/genproto/metrics 2>/dev/null || mkdir "../internal/services/genproto/metrics" 2>nul || true
+	@mkdir -p ../internal/services/genproto/logs 2>/dev/null || mkdir "../internal/services/genproto/logs" 2>nul || true
 	protoc \
 		--proto_path=../internal/protobuf ../internal/protobuf/log.proto \
 		--go_out=../internal/services/genproto/logs --go_opt=paths=source_relative \

@@ -52,11 +52,11 @@ func (h *LogsHandler) GetLogs(c *fiber.Ctx) error {
 	}
 	fromStr := c.Query("from", "")
 	toStr := c.Query("to", "")
-	sortByDate := c.Query("sortByDate", "ASC")
-	sortByDate = strings.ToUpper(sortByDate)
-	var sortEnum = []string{"ASC", "DESC"}
+	sortByDate := c.Query("sortByDate", "asc")
+	sortByDate = strings.ToLower(sortByDate)
+	var sortEnum = []string{"asc", "desc"}
 	if ok := slices.Contains(sortEnum, sortByDate); !ok {
-		sortByDate = "ASC"
+		sortByDate = "asc"
 	}
 	var levelEnum = []string{"info", "debug", "warn", "error", "silly", "http", "verbose", ""}
 
@@ -72,8 +72,8 @@ func (h *LogsHandler) GetLogs(c *fiber.Ctx) error {
 		return InternalError(c, err)
 	}
 
-	if exists == false {
-		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
+	if !exists {
+		return ErrorMessage(c, fiber.StatusBadRequest, "project not found or No logs found")
 	}
 	var fromFormatted, toFormatted string
 
@@ -117,7 +117,7 @@ func (h *LogsHandler) GetLogsMinMaxDates(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, err)
 	}
-	if exists == false {
+	if !exists {
 		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
 	}
 	dates, err := h.svc.GetLogsMinMaxDate(project)
@@ -138,7 +138,7 @@ func (h *LogsHandler) ListLogsFromArchive(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, err)
 	}
-	if exists == false {
+	if !exists {
 		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
 	}
 	logs, err := h.svc.ListAllLogsFromStorage(project)
@@ -198,7 +198,7 @@ func (h *LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, err)
 	}
-	if exists == false {
+	if !exists{
 		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
 	}
 	if archivedLogs, err := h.svc.ListAllLogsFromStorage(project); err != nil || !slices.Contains(archivedLogs, fileName) {

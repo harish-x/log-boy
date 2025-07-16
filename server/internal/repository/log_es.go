@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -22,152 +21,20 @@ type LogES struct {
 }
 
 type LogEntry struct {
-	ServiceName   string    `json:"serviceName"`
-	NodeVersion   string    `json:"nodeVersion"`
-	AppVersion    string    `json:"appVersion"`
-	Level         string    `json:"level"`
-	Message       string    `json:"message"`
-	RequestUrl    string    `json:"requestUrl"`
-	RequestMethod string    `json:"requestMethod"`
-	IpAddress     string    `json:"ipAddress"`
-	UserAgent     string    `json:"userAgent"`
-	RequestId     string    `json:"request_id"`
-	Stack         string    `json:"stack"`
-	Timestamp     time.Time `json:"timestamp"`
-}
-
-func (l *LogES) CreateProjectIndex(projectName string) error {
-	indexName := fmt.Sprintf("logs-%s", projectName)
-	exists, err := l.es.Indices.Exists([]string{indexName})
-
-	if err != nil {
-		return fmt.Errorf("failed to check if index exists: %w", err)
-	}
-
-	if exists.StatusCode == 200 {
-		err := fmt.Sprintf("Index %s already exists", indexName)
-		return errors.New(err)
-	}
-	// index schema template
-	indexBody := map[string]interface{}{
-		"settings": map[string]interface{}{
-			"number_of_shards":   1,
-			"number_of_replicas": 1,
-			"index": map[string]interface{}{
-				"refresh_interval": "1s",
-			},
-		},
-		"mappings": map[string]interface{}{
-			"properties": map[string]interface{}{
-				"serviceName": map[string]interface{}{
-					"type": "keyword",
-				},
-				"buildDetails": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"nodeVersion": map[string]interface{}{
-							"type": "keyword",
-						},
-						"appVersion": map[string]interface{}{
-							"type": "keyword",
-						},
-					},
-				},
-				"level": map[string]interface{}{
-					"type": "keyword",
-				},
-				"message": map[string]interface{}{
-					"type":     "text",
-					"analyzer": "standard",
-					"fields": map[string]interface{}{
-						"keyword": map[string]interface{}{
-							"type":         "keyword",
-							"ignore_above": 256,
-						},
-					},
-				},
-				"stack": map[string]interface{}{
-					"type":     "text",
-					"analyzer": "standard",
-				},
-				"requestId": map[string]interface{}{
-					"type": "keyword",
-				},
-				"requestUrl": map[string]interface{}{
-					"type":     "text",
-					"analyzer": "standard",
-					"fields": map[string]interface{}{
-						"keyword": map[string]interface{}{
-							"type":         "keyword",
-							"ignore_above": 256,
-						},
-					},
-				},
-				"requestMethod": map[string]interface{}{
-					"type": "keyword",
-				},
-				"ipAddress": map[string]interface{}{
-					"type": "ip",
-				},
-				"userAgent": map[string]interface{}{
-					"type":     "text",
-					"analyzer": "standard",
-					"fields": map[string]interface{}{
-						"keyword": map[string]interface{}{
-							"type":         "keyword",
-							"ignore_above": 256,
-						},
-					},
-				},
-				"timestamp": map[string]interface{}{
-					"type":   "date",
-					"format": "strict_date_optional_time||epoch_millis",
-				},
-			},
-		},
-	}
-
-	jsonBody, err := json.Marshal(indexBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal index body: %w", err)
-	}
-	fmt.Printf("index body:\n %s \n", string(jsonBody))
-	// Create the index
-	res, err := l.es.Indices.Create(
-		indexName,
-		l.es.Indices.Create.WithContext(context.Background()),
-		l.es.Indices.Create.WithBody(strings.NewReader(string(jsonBody))),
-		l.es.Indices.Create.WithPretty(),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create index: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			return
-		}
-	}(res.Body)
-
-	// Check response
-	if res.IsError() {
-		var errorResponse map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&errorResponse); err != nil {
-			return fmt.Errorf("failed to parse error response: %w", err)
-		}
-
-		if errorType, ok := errorResponse["error"].(map[string]interface{})["type"].(string); ok {
-			if errorType == "resource_already_exists_exception" {
-				log.Print("Index was created by another process, which is fine")
-				return nil
-			}
-		}
-
-		return fmt.Errorf("elasticsearch error: %s", res.String())
-	}
-
-	log.Printf("Successfully created index: %s", indexName)
-	return nil
+	ServiceName    string    `json:"serviceName"`
+	NodeVersion    string    `json:"nodeVersion"`
+	AppVersion     string    `json:"appVersion"`
+	Level          string    `json:"level"`
+	Message        string    `json:"message"`
+	RequestUrl     string    `json:"requestUrl"`
+	RequestMethod  string    `json:"requestMethod"`
+	IpAddress      string    `json:"ipAddress"`
+	UserAgent      string    `json:"userAgent"`
+	RequestId      string    `json:"request_id"`
+	Stack          string    `json:"stack"`
+	ResponseStatus string    `json:"responseStatus"`
+	ResponseTime   string    `json:"responseTime"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
@@ -186,9 +53,9 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		},
 		"sort": []map[string]interface{}{},
 		"_source": []string{
-			"serviceName", "level", "message", "stack", "requestUrl",
+			"serviceName", "level", "message", "stack", "requestMethod",
 			"requestUrl", "requestId", "ipAddress", "userAgent",
-			"timestamp", "buildDetails",
+			"timestamp", "buildDetails", "responseStatus", "responseTime",
 		},
 	}
 
@@ -349,6 +216,14 @@ func (l *LogES) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, error) {
 		}
 		if userAgent, ok := hit.Source["userAgent"].(string); ok {
 			lg.UserAgent = userAgent
+		}
+
+		if responseStatus, ok := hit.Source["responseStatus"].(string); ok {
+			lg.ResponseStatus = responseStatus
+		}
+
+		if responseTime, ok := hit.Source["responseTime"].(string); ok {
+			lg.ResponseTime = responseTime
 		}
 
 		if timestampStr, ok := hit.Source["timestamp"].(string); ok {

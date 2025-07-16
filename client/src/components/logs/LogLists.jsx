@@ -4,7 +4,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "../ui/skeleton";
 
-
 const logLevelClass = {
   warn: "text-warn",
   info: "text-info",
@@ -14,7 +13,6 @@ const logLevelClass = {
   debug: "text-debug",
   silly: "text-silly",
 };
-
 
 const truncate = (message, maxLength = 100) => {
   if (typeof message !== "string") return "";
@@ -88,8 +86,21 @@ const LogItem = memo(({ log, index }) => {
             <p className="col-span-2">
               <span className="text-muted-foreground">URL:</span> <span className="font-mono break-all">{log?.requestUrl || "-"}</span>
             </p>
+            <p className="">
+              <span className="text-muted-foreground">Response Time:</span> <span className="font-mono break-all">{ log?.responseTime || "-"}</span>
+            </p>
+            <p className="">
+              <span className="text-muted-foreground">Response Status:</span>{" "}
+              <span
+                className={`font-mono break-all ${
+                  parseInt(log?.responseStatus) < 400 ? "text-green-600" : parseInt(log?.responseStatus) < 500 ? "text-warn" : "text-destructive"
+                }`}
+              >
+                {log?.responseStatus || "-"}
+              </span>
+            </p>
             <p>
-              <span className="text-muted-foreground">IP:</span> <span className="font-mono">{log?.ipAddress || "-"}</span>
+              <span className="text-muted-foreground">IP:</span> <span className={`font-mono`}>{log?.ipAddress || "-"}</span>
             </p>
           </div>
 
@@ -114,8 +125,8 @@ const VirtualizedLogList = memo(({ logs, itemHeight = 60, containerHeight = 400 
   const visibleRange = useMemo(() => {
     const start = Math.floor(scrollTop / itemHeight);
     const visibleCount = Math.ceil(containerHeight / itemHeight);
-    const end = Math.min(start + visibleCount + 5, logs.length); 
-    return { start: Math.max(0, start - 5), end }; 
+    const end = Math.min(start + visibleCount + 5, logs.length);
+    return { start: Math.max(0, start - 5), end };
   }, [scrollTop, itemHeight, containerHeight, logs.length]);
 
   const handleScroll = useCallback((e) => {
@@ -146,14 +157,12 @@ const VirtualizedLogList = memo(({ logs, itemHeight = 60, containerHeight = 400 
 
 VirtualizedLogList.displayName = "VirtualizedLogList";
 
-
 const LogLists = memo(({ logError, isLoading, isFetchingLogs, logsData, clearFilters, isLiveMode = false }) => {
   const [isVirtualized, setIsVirtualized] = useState(false);
 
   const logs = useMemo(() => {
     return logsData?.data?.logs || [];
   }, [logsData]);
-
 
   useEffect(() => {
     setIsVirtualized(logs.length > 50 || isLiveMode);
@@ -186,11 +195,9 @@ const LogLists = memo(({ logError, isLoading, isFetchingLogs, logsData, clearFil
     [clearFilters]
   );
 
-
   if (isLoading || isFetchingLogs) {
     return loadingSkeleton;
   }
-
 
   if (logError && logError?.data?.message === "No logs found") {
     return <div className="px-4 py-2 border border-primary/[0.20] w-full h-[calc(100vh-15rem)]">{emptyState}</div>;
@@ -210,9 +217,7 @@ const LogLists = memo(({ logError, isLoading, isFetchingLogs, logsData, clearFil
     <div>
       <ScrollArea className="px-4 py-2 border border-primary/[0.20] w-full h-[calc(100vh-15rem)]" id="log-list-scroll-area">
         {isVirtualized ? (
-          <VirtualizedLogList
-            logs={logs}
-          />
+          <VirtualizedLogList logs={logs} />
         ) : (
           <Accordion type="single" collapsible>
             {logs.map((log, index) => (

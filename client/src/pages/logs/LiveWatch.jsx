@@ -89,6 +89,7 @@ const LiveWatch = () => {
       project: projectName,
       limit: 10,
       page: 1,
+      SortByDate:"desc",
     })
       .unwrap()
       .then((response) => {

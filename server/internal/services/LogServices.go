@@ -24,10 +24,6 @@ func (s *LogServices) GetLogs(filters *dto.LogFilter) ([]*models.Log, int64, err
 	return s.Repo.GetLogs(filters)
 }
 
-func (s *LogServices) CreateProjectIndex(projectID string) error {
-	return s.Repo.CreateProjectIndex(projectID)
-}
-
 func (s *LogServices) GetLogsMinMaxDate(projectName string) ([]string, error) {
 	projectName = "logs-" + projectName
 	return s.Repo.GetLogsAvailabilities(projectName)

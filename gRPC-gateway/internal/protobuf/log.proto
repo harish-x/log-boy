@@ -25,8 +25,11 @@ message Log {
   string requestMethod = 8;
   string userAgent = 9;
   string remoteIp = 10;
-  google.protobuf.Timestamp timestamp = 11;
+  string responseStatus = 11;
+  string responseTime = 12;
+  google.protobuf.Timestamp timestamp = 13;
 }
+
 
 message Response {
   bool ack = 1;

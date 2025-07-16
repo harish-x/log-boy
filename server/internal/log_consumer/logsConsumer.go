@@ -111,20 +111,22 @@ type ServiceBatch struct {
 }
 
 type LogDocument struct {
-	ServiceName   string        `json:"serviceName"`
-	BuildDetails  *BuildDetails `json:"buildDetails,omitempty"`
-	Level         string        `json:"level"`
-	Message       string        `json:"message"`
-	Stack         string        `json:"stack,omitempty"`
-	RequestId     string        `json:"requestId,omitempty"`
-	RequestUrl    string        `json:"requestUrl,omitempty"`
-	RequestMethod string        `json:"requestMethod,omitempty"`
-	UserAgent     string        `json:"userAgent,omitempty"`
-	RemoteIp      string        `json:"ipAddress,omitempty"`
-	Timestamp     time.Time     `json:"timestamp"`
-	Topic         string        `json:"topic"`
-	Partition     int32         `json:"partition"`
-	Offset        int64         `json:"offset"`
+	ServiceName    string        `json:"serviceName"`
+	BuildDetails   *BuildDetails `json:"buildDetails,omitempty"`
+	Level          string        `json:"level"`
+	Message        string        `json:"message"`
+	Stack          string        `json:"stack,omitempty"`
+	RequestId      string        `json:"requestId,omitempty"`
+	RequestUrl     string        `json:"requestUrl,omitempty"`
+	RequestMethod  string        `json:"requestMethod,omitempty"`
+	UserAgent      string        `json:"userAgent,omitempty"`
+	RemoteIp       string        `json:"ipAddress,omitempty"`
+	ResponseStatus string        `json:"responseStatus,omitempty"`
+	ResponseTime   string        `json:"responseTime,omitempty"`
+	Timestamp      time.Time     `json:"timestamp"`
+	Topic          string        `json:"topic"`
+	Partition      int32         `json:"partition"`
+	Offset         int64         `json:"offset"`
 }
 
 type BuildDetails struct {
@@ -160,20 +162,22 @@ func (p *DefaultLogProcessor) ProcessLog(logMessage *protogen.Log, topic string,
 
 	// Create log document
 	doc := LogDocument{
-		ServiceName:   serviceName,
-		BuildDetails:  buildDetails,
-		Level:         logMessage.GetLevel(),
-		Message:       logMessage.GetMessage(),
-		Stack:         logMessage.GetStack(),
-		RequestId:     logMessage.GetRequestId(),
-		RequestUrl:    logMessage.GetRequestUrl(),
-		RequestMethod: logMessage.GetRequestMethod(),
-		UserAgent:     logMessage.GetUserAgent(),
-		RemoteIp:      logMessage.GetRemoteIp(),
-		Timestamp:     logMessage.GetTimestamp().AsTime(),
-		Topic:         topic,
-		Partition:     partition,
-		Offset:        offset,
+		ServiceName:    serviceName,
+		BuildDetails:   buildDetails,
+		Level:          logMessage.GetLevel(),
+		Message:        logMessage.GetMessage(),
+		Stack:          logMessage.GetStack(),
+		RequestId:      logMessage.GetRequestId(),
+		RequestUrl:     logMessage.GetRequestUrl(),
+		RequestMethod:  logMessage.GetRequestMethod(),
+		UserAgent:      logMessage.GetUserAgent(),
+		RemoteIp:       logMessage.GetRemoteIp(),
+		Timestamp:      logMessage.GetTimestamp().AsTime(),
+		ResponseStatus: logMessage.GetResponseStatus(),
+		ResponseTime:   logMessage.GetResponseTime(),
+		Topic:          topic,
+		Partition:      partition,
+		Offset:         offset,
 	}
 	if client, ok := p.logSSE.GetClientChannel(serviceName); ok {
 		log.Printf("Client channel found for service: %v", client)
@@ -450,17 +454,19 @@ func toLogModel(doc LogDocument) *models.Log {
 	}
 
 	logModel := models.Log{
-		ServiceName:   doc.ServiceName,
-		Level:         doc.Level,
-		Message:       doc.Message,
-		Stack:         doc.Stack,
-		RequestId:     doc.RequestId,
-		RequestUrl:    doc.RequestUrl,
-		RequestMethod: doc.RequestMethod,
-		UserAgent:     doc.UserAgent,
-		Timestamp:     doc.Timestamp,
-		IpAddress:     doc.RemoteIp,
-		BuildDetails:  builddetails,
+		ServiceName:    doc.ServiceName,
+		Level:          doc.Level,
+		Message:        doc.Message,
+		Stack:          doc.Stack,
+		RequestId:      doc.RequestId,
+		RequestUrl:     doc.RequestUrl,
+		RequestMethod:  doc.RequestMethod,
+		UserAgent:      doc.UserAgent,
+		Timestamp:      doc.Timestamp,
+		IpAddress:      doc.RemoteIp,
+		ResponseStatus: doc.ResponseStatus,
+		ResponseTime:   doc.ResponseTime,
+		BuildDetails:   builddetails,
 	}
 
 	return &logModel

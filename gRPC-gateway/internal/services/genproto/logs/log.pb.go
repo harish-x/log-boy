@@ -75,20 +75,22 @@ func (x *BuildDetails) GetAppVersion() string {
 }
 
 type Log struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServiceName   string                 `protobuf:"bytes,1,opt,name=serviceName,proto3" json:"serviceName,omitempty"`
-	BuildDetails  *BuildDetails          `protobuf:"bytes,2,opt,name=buildDetails,proto3" json:"buildDetails,omitempty"`
-	Level         string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"`
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	Stack         string                 `protobuf:"bytes,5,opt,name=stack,proto3" json:"stack,omitempty"`
-	RequestId     string                 `protobuf:"bytes,6,opt,name=requestId,proto3" json:"requestId,omitempty"`
-	RequestUrl    string                 `protobuf:"bytes,7,opt,name=requestUrl,proto3" json:"requestUrl,omitempty"`
-	RequestMethod string                 `protobuf:"bytes,8,opt,name=requestMethod,proto3" json:"requestMethod,omitempty"`
-	UserAgent     string                 `protobuf:"bytes,9,opt,name=userAgent,proto3" json:"userAgent,omitempty"`
-	RemoteIp      string                 `protobuf:"bytes,10,opt,name=remoteIp,proto3" json:"remoteIp,omitempty"`
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ServiceName    string                 `protobuf:"bytes,1,opt,name=serviceName,proto3" json:"serviceName,omitempty"`
+	BuildDetails   *BuildDetails          `protobuf:"bytes,2,opt,name=buildDetails,proto3" json:"buildDetails,omitempty"`
+	Level          string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"`
+	Message        string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	Stack          string                 `protobuf:"bytes,5,opt,name=stack,proto3" json:"stack,omitempty"`
+	RequestId      string                 `protobuf:"bytes,6,opt,name=requestId,proto3" json:"requestId,omitempty"`
+	RequestUrl     string                 `protobuf:"bytes,7,opt,name=requestUrl,proto3" json:"requestUrl,omitempty"`
+	RequestMethod  string                 `protobuf:"bytes,8,opt,name=requestMethod,proto3" json:"requestMethod,omitempty"`
+	UserAgent      string                 `protobuf:"bytes,9,opt,name=userAgent,proto3" json:"userAgent,omitempty"`
+	RemoteIp       string                 `protobuf:"bytes,10,opt,name=remoteIp,proto3" json:"remoteIp,omitempty"`
+	ResponseStatus string                 `protobuf:"bytes,11,opt,name=responseStatus,proto3" json:"responseStatus,omitempty"`
+	ResponseTime   string                 `protobuf:"bytes,12,opt,name=responseTime,proto3" json:"responseTime,omitempty"`
+	Timestamp      *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Log) Reset() {
@@ -191,6 +193,20 @@ func (x *Log) GetRemoteIp() string {
 	return ""
 }
 
+func (x *Log) GetResponseStatus() string {
+	if x != nil {
+		return x.ResponseStatus
+	}
+	return ""
+}
+
+func (x *Log) GetResponseTime() string {
+	if x != nil {
+		return x.ResponseTime
+	}
+	return ""
+}
+
 func (x *Log) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Timestamp
@@ -251,7 +267,7 @@ const file_log_proto_rawDesc = "" +
 	"\vnodeVersion\x18\x01 \x01(\tR\vnodeVersion\x12\x1e\n" +
 	"\n" +
 	"appVersion\x18\x02 \x01(\tR\n" +
-	"appVersion\"\xff\x02\n" +
+	"appVersion\"\xcb\x03\n" +
 	"\x03Log\x12 \n" +
 	"\vserviceName\x18\x01 \x01(\tR\vserviceName\x128\n" +
 	"\fbuildDetails\x18\x02 \x01(\v2\x14.logboy.BuildDetailsR\fbuildDetails\x12\x14\n" +
@@ -265,8 +281,10 @@ const file_log_proto_rawDesc = "" +
 	"\rrequestMethod\x18\b \x01(\tR\rrequestMethod\x12\x1c\n" +
 	"\tuserAgent\x18\t \x01(\tR\tuserAgent\x12\x1a\n" +
 	"\bremoteIp\x18\n" +
-	" \x01(\tR\bremoteIp\x128\n" +
-	"\ttimestamp\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x1c\n" +
+	" \x01(\tR\bremoteIp\x12&\n" +
+	"\x0eresponseStatus\x18\v \x01(\tR\x0eresponseStatus\x12\"\n" +
+	"\fresponseTime\x18\f \x01(\tR\fresponseTime\x128\n" +
+	"\ttimestamp\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x1c\n" +
 	"\bResponse\x12\x10\n" +
 	"\x03ack\x18\x01 \x01(\bR\x03ack2B\n" +
 	"\n" +
