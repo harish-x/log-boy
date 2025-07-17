@@ -37,7 +37,7 @@ func NewPostgres(addr string, maxOpenConns int, maxIdleConns int, maxConnLifetim
 		return nil, fmt.Errorf("failed to create uuid extension: %w", err)
 	}
 
-	err = db.AutoMigrate(&models.Project{})
+	err = db.AutoMigrate(&models.Project{}, &models.Alert{}, &models.AlertMethods{}, &models.VerifiedEmails{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to ping DB: %w", err)
 	}

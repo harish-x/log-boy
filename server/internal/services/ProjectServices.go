@@ -55,10 +55,6 @@ func ValidateProject(project *models.Project) error {
 		return errors.New("project retention period is required")
 	}
 
-	if project.Active || project.ErrorRatio != 0 || project.TotalErrors != 0 || project.TotalRequests != 0 || project.TotalWarnings != 0 {
-		return errors.New("project contains unsupported fields")
-	}
-
 	return nil
 }
 

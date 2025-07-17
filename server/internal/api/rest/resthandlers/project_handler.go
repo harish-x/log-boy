@@ -41,7 +41,6 @@ func SetupProjectRoutes(r *RestHandler) {
 }
 
 // CreateProject handles the creation of a new project based on the provided request body.
-// It validates the project data, checks for duplicate names, and returns an appropriate response.
 func (h *ProjectHandler) CreateProject(c *fiber.Ctx) error {
 	var project models.Project
 	if err := c.BodyParser(&project); err != nil {
@@ -133,7 +132,6 @@ func (h *ProjectHandler) DeleteProject(c *fiber.Ctx) error {
 }
 
 // GetProjectByID retrieves a project by its ID from the path parameter and returns it in the response.
-// Returns a 400 error if ID is missing, a 404 error if the project is not found, or a 500 error for internal issues.
 func (h *ProjectHandler) GetProjectByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
@@ -152,7 +150,6 @@ func (h *ProjectHandler) GetProjectByID(c *fiber.Ctx) error {
 }
 
 // GetProjectByName retrieves a project by its name from the path parameter and returns it in the response.
-// Returns a 400 error if the name is missing, a 404 error if the project is not found, or a 500 error for internal issues.
 func (h *ProjectHandler) GetProjectByName(c *fiber.Ctx) error {
 	name := c.Params("name")
 	if name == "" {
@@ -196,7 +193,6 @@ func (h *ProjectHandler) UpdateProject(c *fiber.Ctx) error {
 }
 
 // GenerateProjectKey generates a unique project key based on the provided project name.
-// Returns a 400 error if the project name is missing, or a 200 success response with the generated key.
 func (h *ProjectHandler) GenerateProjectKey(c *fiber.Ctx) error {
 	projectName := c.Params("name")
 	if projectName == "" {
@@ -207,9 +203,12 @@ func (h *ProjectHandler) GenerateProjectKey(c *fiber.Ctx) error {
 }
 
 // GetRecentProjects retrieves a list of recently accessed projects based on query parameters and returns them in the response.
-// The method handles errors during retrieval and formats the project data into a standard response format.
 func (h *ProjectHandler) GetRecentProjects(c *fiber.Ctx) error {
 	projectNames := c.Query("p", "project_1")
+
+	if projectNames == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "project name is required")
+	}
 
 	projects, err := h.svc.GetRecentProjects(projectNames)
 	if err != nil {

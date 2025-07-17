@@ -60,4 +60,5 @@ func SetupRoutes(h *resthandlers.RestHandler, l *services.SSEService, m *servers
 	resthandlers.SetupProjectRoutes(h)
 	resthandlers.SetupLogsRoutes(h, l)
 	resthandlers.SetupMetricsHandler(h, m)
+	resthandlers.SetupAlertRoutes(h)
 }
