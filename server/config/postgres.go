@@ -12,7 +12,9 @@ import (
 )
 
 func NewPostgres(addr string, maxOpenConns int, maxIdleConns int, maxConnLifetime string) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(addr))
+	db, err := gorm.Open(postgres.Open(addr), &gorm.Config{
+		PrepareStmt: false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
@@ -37,7 +39,7 @@ func NewPostgres(addr string, maxOpenConns int, maxIdleConns int, maxConnLifetim
 		return nil, fmt.Errorf("failed to create uuid extension: %w", err)
 	}
 
-	err = db.AutoMigrate(&models.Project{}, &models.Alert{}, &models.AlertMethods{}, &models.VerifiedEmails{})
+	err = db.AutoMigrate(&models.Project{}, &models.Alert{}, &models.AlertMethods{}, &models.VerifiedEmails{}, &models.MailVerify{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to ping DB: %w", err)
 	}

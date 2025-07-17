@@ -2,8 +2,13 @@ package services
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
+	"server/internal/api/dto"
 	"server/internal/models"
 	"server/internal/repository"
+	"strconv"
+	"time"
 )
 
 type AlertServices struct {
@@ -12,12 +17,12 @@ type AlertServices struct {
 
 func (as *AlertServices) CreateAlert(alert *models.Alert, alertMethods *[]models.AlertMethods) error {
 
-	exists, err := as.Repo.CheckIfProjectExists(alert.ProjectId)
+	exists, err := as.Repo.CheckIfProjectExists(alert.ProjectName)
 	if err != nil {
-		return err
+		return fmt.Errorf("project %s does not exist", alert.ProjectName)
 	}
 	if !exists {
-		return fmt.Errorf("project %s does not exist", alert.ProjectId)
+		return fmt.Errorf("project %s does not exist", alert.ProjectName)
 	}
 
 	for _, alertMethod := range *alertMethods {
@@ -29,10 +34,10 @@ func (as *AlertServices) CreateAlert(alert *models.Alert, alertMethods *[]models
 			if !verified {
 				return fmt.Errorf("email %s is not verified", alertMethod.Value)
 			}
-			if alertMethod.ProjectID != alert.ProjectId {
-				return fmt.Errorf("email %s is not associated with project %s", alertMethod.Value, alert.ProjectId)
+			if alertMethod.ProjectName != alert.ProjectName {
+				return fmt.Errorf("email %s is not associated with project %s", alertMethod.Value, alert.ProjectName)
 			}
-			if alertMethod.ProjectID == "" {
+			if alertMethod.ProjectName == "" {
 				return fmt.Errorf("email %s is not associated with any project", alertMethod.Value)
 			}
 		}
@@ -51,6 +56,47 @@ func (as *AlertServices) CreateAlert(alert *models.Alert, alertMethods *[]models
 	return nil
 }
 
+func (as *AlertServices) GetVerifiedEmails(project string) ([]*models.VerifiedEmails, error) {
+	exists, err := as.Repo.CheckIfProjectExists(project)
+	if err != nil {
+		return nil, fmt.Errorf("project %s does not exist", project)
+	}
+	if !exists {
+		return nil, fmt.Errorf("project %s does not exist", project)
+	}
+	return as.Repo.GetVerifiedEmails(project)
+}
+
+func (as *AlertServices) RequestEmailVerify(p *dto.CreateVerifyEmail) error {
+	exists, err := as.Repo.CheckIfProjectExists(p.Project)
+	if err != nil {
+		return fmt.Errorf("project %s does not exist", p.Project)
+	}
+	if !exists {
+		return fmt.Errorf("project %s does not exist", p.Project)
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var OTP string
+	OTP = ""
+	for range 6 {
+		OTP = OTP + strconv.Itoa(r.Intn(100))
+	}
+
+	verify := models.MailVerify{
+		Email: p.Email,
+		OTP:   OTP,
+	}
+	log.Print(OTP)
+	err = as.Repo.CreateEmailVerifyRequest(&verify)
+	if err != nil {
+		return fmt.Errorf("Internal Server Error")
+	}
+	return nil
+}
+
+func (as *AlertServices) VerifyEmail(email string) (bool, error) {
+	return as.Repo.VerifyEmail(email)
+}
 func (as *AlertServices) UpdateAlert(alert *models.Alert) error {
 	err := as.Repo.UpdateAlert(alert)
 	if err != nil {

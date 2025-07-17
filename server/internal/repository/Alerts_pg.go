@@ -33,7 +33,7 @@ func (a *AlertRepo) DeleteAlert(id string) error {
 }
 
 func (a *AlertRepo) CheckIfProjectExists(project string) (bool, error) {
-	p := a.db.Model(&models.Project{}).Where("id = ?", project).First(&models.Project{})
+	p := a.db.Model(&models.Project{}).Where("name = ?", project).First(&models.Project{})
 	if p.Error == nil && errors.Is(p.Error, gorm.ErrRecordNotFound) {
 		return false, nil
 	}
@@ -45,7 +45,7 @@ func (a *AlertRepo) CheckIfProjectExists(project string) (bool, error) {
 
 func (a *AlertRepo) GetVerifiedEmails(project string) ([]*models.VerifiedEmails, error) {
 	var emails []*models.VerifiedEmails
-	res := a.db.Model(&models.VerifiedEmails{}).Where("project_id = ?", project).Find(&emails)
+	res := a.db.Model(&models.VerifiedEmails{}).Where("project_name = ?", project).Find(&emails)
 
 	if res.Error != nil {
 		return nil, errors.New("error while fetching emails")
@@ -54,6 +54,27 @@ func (a *AlertRepo) GetVerifiedEmails(project string) ([]*models.VerifiedEmails,
 	return emails, nil
 }
 
+func (a *AlertRepo) CreateEmailVerifyRequest(v *models.MailVerify) error {
+	var verifyEmails models.MailVerify
+	err := a.db.Model(models.MailVerify{}).Where("email = ?", v.Email).Order("created_at DESC").First(&verifyEmails).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return a.db.Create(v).Error
+	}
+	if verifyEmails.Email != "" {
+		return a.db.Save(v).Error
+	}
+	return errors.New("Internal server error")
+}
+
+func (a *AlertRepo) VerifyEmail(email string) (bool, error) {
+	var verifyEmails models.MailVerify
+	err := a.db.Model(models.MailVerify{}).Where("email = ?", email).Order("created_at DESC").First(&verifyEmails).Error
+	if err != nil {
+		return false, err
+	}
+	return false, err
+
+}
 func (a *AlertRepo) CheckIsEmailVerified(email string) (bool, error) {
 	var record models.VerifiedEmails
 	err := a.db.Where("email = ?", email).First(&record).Error

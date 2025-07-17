@@ -15,6 +15,8 @@ type AlertsRepo interface {
 	DeleteAlert(id string) error
 	CheckIfProjectExists(project string) (bool, error)
 	GetVerifiedEmails(project string) ([]*models.VerifiedEmails, error)
+	CreateEmailVerifyRequest(v *models.MailVerify) error
+	VerifyEmail(email string) (bool, error)
 	CheckIsEmailVerified(email string) (bool, error)
 	CreateAlertMethod(alertMethod *models.AlertMethods) error
 }
