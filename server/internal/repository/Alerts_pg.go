@@ -3,7 +3,9 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"log"
 	"server/internal/models"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -55,29 +57,54 @@ func (a *AlertRepo) GetVerifiedEmails(project string) ([]*models.VerifiedEmails,
 }
 
 func (a *AlertRepo) CreateEmailVerifyRequest(v *models.MailVerify) error {
-	var verifyEmails models.MailVerify
-	err := a.db.Model(models.MailVerify{}).Where("email = ?", v.Email).Order("created_at DESC").First(&verifyEmails).Error
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	var existing models.MailVerify
+
+	// Check if email already exists
+	err := a.db.Where("email = ?", v.Email).Order("created_at DESC").First(&existing).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return a.db.Create(v).Error
+	} else if err != nil {
+		return fmt.Errorf("db error: %w", err)
 	}
-	if verifyEmails.Email != "" {
-		return a.db.Save(v).Error
-	}
-	return errors.New("Internal server error")
+
+	existing.OTP = v.OTP
+	existing.UpdatedAt = time.Now()
+
+	return a.db.Save(&existing).Error
 }
 
-func (a *AlertRepo) VerifyEmail(email string) (bool, error) {
+func (a *AlertRepo) VerifyEmail(email, project, otp string) (bool, error) {
 	var verifyEmails models.MailVerify
-	err := a.db.Model(models.MailVerify{}).Where("email = ?", email).Order("created_at DESC").First(&verifyEmails).Error
-	if err != nil {
-		return false, err
-	}
-	return false, err
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 
+	err := a.db.
+		Where("email = ? AND otp = ? AND updated_at >= ?", email, otp, fiveMinutesAgo).
+		Order("created_at DESC").
+		First(&verifyEmails).Error
+
+	log.Printf("verifyEmails error: %v", err)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("db error: %w", err)
+	}
+
+	err = a.db.Create(&models.VerifiedEmails{
+		ProjectName: project,
+		Email:       email,
+	}).Error
+
+	if err != nil {
+		return false, fmt.Errorf("db error: %w", err)
+	}
+
+	return true, nil
 }
-func (a *AlertRepo) CheckIsEmailVerified(email string) (bool, error) {
+func (a *AlertRepo) CheckIsEmailVerified(email, project string) (bool, error) {
 	var record models.VerifiedEmails
-	err := a.db.Where("email = ?", email).First(&record).Error
+	err := a.db.Where("email = ? AND project_name = ?", email, project).First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
@@ -88,4 +115,13 @@ func (a *AlertRepo) CheckIsEmailVerified(email string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (a *AlertRepo) GetAlerts(project string) ([]*models.Alert, error) {
+	var alerts []*models.Alert
+	err := a.db.Model(&models.Alert{}).Where("project_name = ?", project).Find(&alerts).Error
+	if err != nil {
+		return nil, fmt.Errorf("db error: %w", err)
+	}
+	return alerts, err
 }

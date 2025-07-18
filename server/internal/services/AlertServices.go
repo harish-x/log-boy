@@ -27,7 +27,7 @@ func (as *AlertServices) CreateAlert(alert *models.Alert, alertMethods *[]models
 
 	for _, alertMethod := range *alertMethods {
 		if alertMethod.Method == "email" {
-			verified, err := as.Repo.CheckIsEmailVerified(alertMethod.Value)
+			verified, err := as.Repo.CheckIsEmailVerified(alertMethod.Value, alert.ProjectName)
 			if err != nil {
 				return fmt.Errorf("error while checking if email is verified: %w", err)
 			}
@@ -68,12 +68,17 @@ func (as *AlertServices) GetVerifiedEmails(project string) ([]*models.VerifiedEm
 }
 
 func (as *AlertServices) RequestEmailVerify(p *dto.CreateVerifyEmail) error {
-	exists, err := as.Repo.CheckIfProjectExists(p.Project)
-	if err != nil {
+	ProjectExists, err := as.Repo.CheckIfProjectExists(p.Project)
+	if err != nil || !ProjectExists {
 		return fmt.Errorf("project %s does not exist", p.Project)
 	}
-	if !exists {
-		return fmt.Errorf("project %s does not exist", p.Project)
+
+	AlreadyVerified, err := as.Repo.CheckIsEmailVerified(p.Email, p.Project)
+	if err != nil {
+		return fmt.Errorf("internal Server Error")
+	}
+	if AlreadyVerified {
+		return fmt.Errorf("email %s is already verified", p.Email)
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var OTP string
@@ -89,13 +94,14 @@ func (as *AlertServices) RequestEmailVerify(p *dto.CreateVerifyEmail) error {
 	log.Print(OTP)
 	err = as.Repo.CreateEmailVerifyRequest(&verify)
 	if err != nil {
-		return fmt.Errorf("Internal Server Error")
+		return fmt.Errorf("internal Server Error")
 	}
 	return nil
 }
 
-func (as *AlertServices) VerifyEmail(email string) (bool, error) {
-	return as.Repo.VerifyEmail(email)
+func (as *AlertServices) VerifyEmail(email, project, otp string) (bool, error) {
+	log.Print("im working", otp)
+	return as.Repo.VerifyEmail(email, project, otp)
 }
 func (as *AlertServices) UpdateAlert(alert *models.Alert) error {
 	err := as.Repo.UpdateAlert(alert)
@@ -105,6 +111,13 @@ func (as *AlertServices) UpdateAlert(alert *models.Alert) error {
 	return nil
 }
 
+func (as *AlertServices) GetAlerts(projectName string) ([]*models.Alert, error) {
+	alerts, err := as.Repo.GetAlerts(projectName)
+	if err != nil {
+		return nil, err
+	}
+	return alerts, nil
+}
 func (as *AlertServices) DeleteAlert(id string) error {
 	err := as.Repo.DeleteAlert(id)
 	if err != nil {

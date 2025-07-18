@@ -2,15 +2,12 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Alert struct {
-	gorm.Model
 	ID          string    `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
 	ProjectName string    `json:"project_name" gorm:"type:varchar(255);not null"`
-	Project     Project   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:ProjectName;references:Name"`
+	Project     Project   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:ProjectName;references:Name" json:"-"`
 	RuleType    string    `json:"rule_type" gorm:"type:varchar(255)"`
 	MetricName  string    `json:"metric_name" gorm:"type:varchar(255)"`
 	LogField    string    `json:"log_field" gorm:"type:varchar(255)"`

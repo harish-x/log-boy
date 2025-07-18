@@ -2,6 +2,7 @@ package resthandlers
 
 import (
 	"fmt"
+	"log"
 	"server/internal/api/dto"
 	"server/internal/models"
 	"server/internal/repository"
@@ -25,17 +26,27 @@ func SetupAlertRoutes(r *RestHandler) {
 		svc: &svc,
 	}
 
+	api.Post("/email", h.CreateAlertEmail)
+	api.Patch("/email/verify", h.VerifyEmail)
+	api.Post("/new", h.CreateAlert)
+	api.Get("/email/:project", h.GetVerifiedEmail)
 	api.Get("/:project/all", h.GetAlerts)
-	api.Get("/:project/:id", h.GetAlert)
-	api.Post("/", h.CreateAlert)
-	api.Put("/:project/:id", h.UpdateAlert)
-	api.Delete("/:project/:id", h.DeleteAlert)
-	api.Put("/:project/email", h.CreateAlertEmail)
-	api.Get("/:project/email", h.GetVerifiedEmail)
+	//api.Get("/:project/:id", h.GetAlert)
+	//api.Put("/:project/:id", h.UpdateAlert)
+	//api.Delete("/:project/:id", h.DeleteAlert)
 }
 
 func (a *AlertHandler) GetAlerts(ctx *fiber.Ctx) error {
-	return nil
+	project := ctx.Params("project")
+	if project == "" {
+		return ErrorMessage(ctx, fiber.StatusBadRequest, "project name is required")
+	}
+	alerts, err := a.svc.GetAlerts(project)
+	if err != nil {
+		return ErrorMessage(ctx, fiber.StatusInternalServerError, "Internal server error")
+	}
+
+	return SuccessResponse(ctx, fiber.StatusOK, "alerts retrieved successfully", alerts)
 }
 
 func (a *AlertHandler) GetAlert(ctx *fiber.Ctx) error {
@@ -110,19 +121,31 @@ func (a *AlertHandler) CreateAlertEmail(ctx *fiber.Ctx) error {
 }
 
 func (a *AlertHandler) VerifyEmail(ctx *fiber.Ctx) error {
-	type Email struct {
-		Email string `json:"email"`
+
+	type Verify struct {
+		Email   string `json:"email"`
+		Project string `json:"project"`
+		OTP     string `json:"otp"`
 	}
-	var Req Email
+	var Req Verify
 
 	if err := ctx.BodyParser(&Req); err != nil {
 		return ErrorMessage(ctx, fiber.StatusBadRequest, "email is required")
 	}
-	verify, err := a.svc.VerifyEmail(Req.Email)
+	log.Print(Req.Email, Req.Project, Req.OTP)
+	verify, err := a.svc.VerifyEmail(Req.Email, Req.Project, Req.OTP)
+	if err != nil {
+		return ErrorMessage(ctx, fiber.StatusInternalServerError, "Internal server error")
+	}
+	if verify {
+		return SuccessResponse(ctx, fiber.StatusOK, "email verified successfully", nil)
+	}
+	return ErrorMessage(ctx, fiber.StatusBadRequest, "email not verified")
 }
 
 func (a *AlertHandler) GetVerifiedEmail(ctx *fiber.Ctx) error {
 	project := ctx.Params("project")
+	log.Print("im working")
 	if project == "" {
 		return ErrorMessage(ctx, fiber.StatusBadRequest, "project name is required")
 	}
@@ -141,7 +164,7 @@ func (a *AlertHandler) GetVerifiedEmail(ctx *fiber.Ctx) error {
 		v = append(v, c)
 	}
 
-	return SuccessResponse(ctx, fiber.StatusOK, "email retrived successfully", v)
+	return SuccessResponse(ctx, fiber.StatusOK, "email retrieved successfully", v)
 
 }
 

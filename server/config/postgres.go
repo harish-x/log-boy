@@ -12,9 +12,7 @@ import (
 )
 
 func NewPostgres(addr string, maxOpenConns int, maxIdleConns int, maxConnLifetime string) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(addr), &gorm.Config{
-		PrepareStmt: false,
-	})
+	db, err := gorm.Open(postgres.Open(addr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}

@@ -2,12 +2,9 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Project struct {
-	gorm.Model
 	ID               string    `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
 	Name             string    `json:"name" gorm:"type:varchar(255); not null; unique"`
 	Description      string    `json:"description" gorm:"type:text"`

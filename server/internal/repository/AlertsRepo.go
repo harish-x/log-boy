@@ -8,16 +8,16 @@ import (
 )
 
 type AlertsRepo interface {
-	GetAlerts(project string)
-	GetAlert(project string, id string)
+	GetAlerts(project string) ([]*models.Alert, error)
+	GetAlert(project, id string)
 	CreateAlert(alert *models.Alert) (*models.Alert, error)
 	UpdateAlert(alert *models.Alert) error
 	DeleteAlert(id string) error
 	CheckIfProjectExists(project string) (bool, error)
 	GetVerifiedEmails(project string) ([]*models.VerifiedEmails, error)
 	CreateEmailVerifyRequest(v *models.MailVerify) error
-	VerifyEmail(email string) (bool, error)
-	CheckIsEmailVerified(email string) (bool, error)
+	VerifyEmail(email, project, otp string) (bool, error)
+	CheckIsEmailVerified(email, project string) (bool, error)
 	CreateAlertMethod(alertMethod *models.AlertMethods) error
 }
 
