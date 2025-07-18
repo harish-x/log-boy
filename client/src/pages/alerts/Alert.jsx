@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   useLazyGetAllAlertRulesQuery,
   useLazyGetVerifiedEmailsQuery,
@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import {
   Bell,
   Mail,
@@ -33,7 +34,9 @@ import {
   OctagonXIcon,
   SlackIcon,
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useParams } from "react-router-dom";
+
 const AlertManagement = () => {
   const { projectName } = useParams();
   const [alertRules, setAlertRules] = useState([]);
@@ -59,7 +62,7 @@ const AlertManagement = () => {
     project: projectName,
     otp: "",
   });
-  const [selectedEmails, setSelectedEmails] = useState([]);
+  const [selectedEmails, setSelectedEmails] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showOtpDialog, setShowOtpDialog] = useState(false);
@@ -70,7 +73,9 @@ const AlertManagement = () => {
   const [createAlertEmail, { isLoading: creatingEmail }] = useCreateAlertEmailMutation();
   const [verifyAlertEmail, { isLoading: verifyingEmail }] = useVerifyAlertEmailMutation();
   const [createAlertRule, { isLoading: creatingAlert }] = useCreateAlertRuleMutation();
-  const [selectedMethods, setSelectedMethods] = useState([]);
+  const [selectedMethods, setSelectedMethods] = useState({ webhook: false, email: false });
+  const targetRef = useRef(null);
+
   useEffect(() => {
     fetchAlertRules();
     fetchVerifiedEmails();
@@ -106,7 +111,7 @@ const AlertManagement = () => {
 
   const handleCreateEmail = async () => {
     try {
-      const response = await createAlertEmail(emailForm).unwrap();
+      await createAlertEmail(emailForm).unwrap();
       setShowEmailDialog(false);
       setShowOtpDialog(true);
       setOtpForm({
@@ -121,8 +126,18 @@ const AlertManagement = () => {
 
   const handleVerifyEmail = async () => {
     try {
-      await verifyAlertEmail(otpForm).unwrap();
-      setShowOtpDialog(false);
+      await verifyAlertEmail(otpForm)
+        .unwrap()
+        .then((res) => setShowOtpDialog(false))
+        .catch((error) => {
+          toast.error(error?.data?.message, {
+            variant: "destructive",
+            richColors: true,
+            action: <AlertTriangle className="text-red-500 ml-auto" />,
+          });
+          otpForm.otp = "";
+        });
+
       fetchVerifiedEmails();
     } catch (error) {
       console.error("Error verifying email:", error);
@@ -130,16 +145,17 @@ const AlertManagement = () => {
   };
 
   const handleCreateAlert = async () => {
+    console.log("Creating alert:", alertForm);
     try {
       const alertMethods = [];
 
       // Add selected emails
-      selectedEmails.forEach((email) => {
+      if (selectedMethods.email) {
         alertMethods.push({
           method: "email",
-          value: email,
+          value: selectedEmails,
         });
-      });
+      }
 
       // Add webhook if provided
       if (webhookUrl) {
@@ -167,7 +183,16 @@ const AlertManagement = () => {
         payload.event_type = "server_restart";
       }
 
-      await createAlertRule(payload).unwrap();
+      if (alertMethods.length === 0) {
+        toast.error("Please select at least one alert method", {
+          variant: "destructive",
+          richColors: true,
+          action: <AlertTriangle className="text-red-500 ml-auto" />,
+        });
+        return;
+      }
+
+      await createAlertRule(payload);
 
       // Reset form
       setAlertForm({
@@ -182,7 +207,7 @@ const AlertManagement = () => {
         alert_methods: [],
       });
       setSelectedRuleType("");
-      setSelectedEmails([]);
+      setSelectedEmails("");
       setWebhookUrl("");
 
       fetchAlertRules();
@@ -191,6 +216,7 @@ const AlertManagement = () => {
     }
   };
 
+  const theme = localStorage.getItem("vite-ui-theme");
   const getRuleTypeLabel = (ruleType) => {
     switch (ruleType) {
       case "cpu_usage":
@@ -218,17 +244,25 @@ const AlertManagement = () => {
         return "bg-gray-500";
     }
   };
+
+  const scrollToTarget = () => {
+    if (targetRef.current) {
+      targetRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className=" p-6 space-y-6 border border-primary/[0.20] px-2 w-[98%] mx-auto rounded-2xl">
       <div className="relative mb-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 blur-3xl"></div>
         <div className="relative flex items-center justify-center space-x-4 py-8">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 blur-lg opacity-60"></div>
-            <Bell className="relative h-12 w-12 text-white bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg" />
+            <Bell className="relative h-12 w-12 text-white" />
           </div>
           <div className="text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Alert Management</h1>
+            <h1 className="text-4xl font-bold text-primary">Alert Management</h1>
             <p className="text-lg text-muted-foreground mt-2">Intelligent monitoring for your infrastructure</p>
           </div>
         </div>
@@ -238,17 +272,11 @@ const AlertManagement = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 blur-2xl"></div>
       </div>
       <Tabs defaultValue="create" className="relative w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border shadow-lg">
-          <TabsTrigger
-            value="create"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
-          >
+        <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm border shadow-lg">
+          <TabsTrigger value="create" className="data-[state=active]:bg-primary data-[state=active]:text-white">
             Create Alert
           </TabsTrigger>
-          <TabsTrigger
-            value="manage"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
-          >
+          <TabsTrigger value="manage" className="data-[state=active]:bg-primary data-[state=active]:text-white">
             Manage Alerts
           </TabsTrigger>
         </TabsList>
@@ -272,10 +300,13 @@ const AlertManagement = () => {
                   <div
                     className={`group cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                       selectedRuleType === "cpu_usage"
-                        ? "ring-2 ring-destructive shadow-lg shadow-red-500/25"
+                        ? "ring-2 ring-blue-400 shadow-lg shadow-red-500/25"
                         : "hover:shadow-xl hover:shadow-red-500/10"
                     }`}
-                    onClick={() => setSelectedRuleType("cpu_usage")}
+                    onClick={() => {
+                      scrollToTarget();
+                      setSelectedRuleType("cpu_usage");
+                    }}
                   >
                     <Card className="h-full border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
                       <CardContent className="p-6">
@@ -315,7 +346,10 @@ const AlertManagement = () => {
                         ? "ring-2 ring-green-500 shadow-lg shadow-green-500/25"
                         : "hover:shadow-xl hover:shadow-green-500/10"
                     }`}
-                    onClick={() => setSelectedRuleType("memory_usage")}
+                    onClick={() => {
+                      setSelectedRuleType("memory_usage");
+                      scrollToTarget();
+                    }}
                   >
                     <Card className="h-full border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
                       <CardContent className="p-6">
@@ -353,7 +387,10 @@ const AlertManagement = () => {
                         ? "ring-2 ring-amber-500 shadow-lg shadow-amber-500/25"
                         : "hover:shadow-xl hover:shadow-amber-500/10"
                     }`}
-                    onClick={() => setSelectedRuleType("response_status")}
+                    onClick={() => {
+                      setSelectedRuleType("response_status");
+                      scrollToTarget();
+                    }}
                   >
                     <Card className="h-full border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-destructive/20">
                       <CardContent className="p-6">
@@ -361,7 +398,7 @@ const AlertManagement = () => {
                           <div className="flex items-center space-x-3">
                             <div className="relative">
                               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-destructive flex items-center justify-center shadow-lg">
-                                <OctagonXIcon />
+                                <OctagonXIcon className=" text-red-100" />
                               </div>
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-400 rounded-full animate-bounce"></div>
                             </div>
@@ -391,7 +428,10 @@ const AlertManagement = () => {
                         ? "ring-2 ring-purple-500 shadow-lg shadow-purple-500/25"
                         : "hover:shadow-xl hover:shadow-purple-500/10"
                     }`}
-                    onClick={() => setSelectedRuleType("server_restart")}
+                    onClick={() => {
+                      setSelectedRuleType("server_restart");
+                      scrollToTarget();
+                    }}
                   >
                     <Card className="h-full border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
                       <CardContent className="p-6">
@@ -399,7 +439,7 @@ const AlertManagement = () => {
                           <div className="flex items-center space-x-3">
                             <div className="relative">
                               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                <ServerCrashIcon />
+                                <ServerCrashIcon className=" text-purple-100" />
                               </div>
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full animate-bounce"></div>
                             </div>
@@ -459,100 +499,93 @@ const AlertManagement = () => {
               {selectedRuleType && (
                 <>
                   <Separator />
-
                   {/* Alert Configuration */}
-                  <div className="space-y-6">
+                  <div className="space-y-6" ref={targetRef}>
                     <div className="text-center">
-                      <Label className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
-                        Fine-tune Your Alert Parameters
-                      </Label>
+                      <Label className="text-2xl font-bold text-primary">Fine-tune Your Alert Parameters</Label>
                       <p className="text-muted-foreground mt-3">Configure thresholds and conditions with precision</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <Label htmlFor="threshold" className="text-lg font-semibold flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
-                          <span>Threshold</span>
-                        </Label>
-                        <Input
-                          id="threshold"
-                          type="number"
-                          placeholder="Enter threshold value E.g. 80"
-                          value={alertForm.threshold}
-                          onChange={(e) => setAlertForm({ ...alertForm, threshold: e.target.value })}
-                          className="w-3/4 border-2 border-gray-200 dark:border-gray-700 hover:border-green-500 transition-colors focus:border-green-500"
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <Label htmlFor="operator" className="text-lg font-semibold flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
-                          <span>Operator</span>
-                        </Label>
-                        <Select value={alertForm.operator} onValueChange={(value) => setAlertForm({ ...alertForm, operator: value })}>
-                          <SelectTrigger className="h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 transition-colors">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value=">=">Greater than or equal</SelectItem>
-                            <SelectItem value=">">Greater than </SelectItem>
-                            <SelectItem value="<=">Less than or equal</SelectItem>
-                            <SelectItem value="<">Less than</SelectItem>
-                            <SelectItem value="==">Equal to </SelectItem>
-                          </SelectContent>
-                        </Select>
+                    <div className="space-y-8 rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Define Alert Condition</h3>
+                        <div className="p-4 border rounded-md flex flex-wrap items-center gap-3 bg-muted/40">
+                          <span className="font-medium">When value is</span>
+
+                          {/* Operator Dropdown */}
+                          <Select value={alertForm.operator} onValueChange={(value) => setAlertForm({ ...alertForm, operator: value })}>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select operator" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value=">">Greater than</SelectItem>
+                              <SelectItem value="<">Less than</SelectItem>
+                              <SelectItem value=">=">Greater than or equal to</SelectItem>
+                              <SelectItem value="<=">Less than or equal to</SelectItem>
+                              <SelectItem value="==">Equal to</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <div className="relative">
+                            <Input
+                              id="threshold"
+                              type="number"
+                              placeholder="e.g., 80"
+                              value={alertForm.threshold}
+                              onChange={(e) => setAlertForm({ ...alertForm, threshold: e.target.value })}
+                              className="w-28 pl-3 pr-6"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                          </div>
+
+                          <span className="font-medium">for</span>
+
+                          {/* Time Window Dropdown */}
+                          <Select value={alertForm.time_window} onValueChange={(value) => setAlertForm({ ...alertForm, time_window: value })}>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5 minutes">5 minutes</SelectItem>
+                              <SelectItem value="15 minutes">15 minutes</SelectItem>
+                              <SelectItem value="30 minutes">30 minutes</SelectItem>
+                              <SelectItem value="1 hour">1 hour</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <Label htmlFor="time_window" className="text-lg font-semibold flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"></div>
-                          <span>Time Window</span>
-                        </Label>
-                        <Select value={alertForm.time_window} onValueChange={(value) => setAlertForm({ ...alertForm, time_window: value })}>
-                          <SelectTrigger className="h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-amber-500 transition-colors">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1 minute">1 minute</SelectItem>
-                            <SelectItem value="5 minutes">5 minutes</SelectItem>
-                            <SelectItem value="10 minutes">10 minutes</SelectItem>
-                            <SelectItem value="15 minutes">15 minutes</SelectItem>
-                            <SelectItem value="30 minutes">30 minutes</SelectItem>
-                            <SelectItem value="1 hour">1 hour</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label htmlFor="severity" className="text-lg font-semibold flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-full"></div>
-                          <span>Severity Level</span>
-                        </Label>
-                        <Select value={alertForm.severity} onValueChange={(value) => setAlertForm({ ...alertForm, severity: value })}>
-                          <SelectTrigger className="h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 transition-colors">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="info">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                <span>Info</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="warning">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                <span>Warning</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="critical">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                <span>Critical</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                      {/* Section for defining the alert action */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Set Notification</h3>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium">Severity level:</span>
+                          <Select value={alertForm.severity} onValueChange={(value) => setAlertForm({ ...alertForm, severity: value })}>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select severity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="info">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                  <span>Info</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="warning">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                  <span>Warning</span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="critical">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                  <span>Critical</span>
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -567,7 +600,7 @@ const AlertManagement = () => {
                       variant={selectedMethods.webhook ? "default" : "outline"}
                       size="sm"
                       className="ml-2"
-                      onClick={(selectedMethods) => setSelectedMethods({ ...selectedMethods, webhook: !selectedMethods.webhook })}
+                      onClick={() => setSelectedMethods({ ...selectedMethods, webhook: !selectedMethods.webhook })}
                     >
                       <Webhook /> webhook
                     </Button>
@@ -584,22 +617,26 @@ const AlertManagement = () => {
                     </Button>
 
                     <Button variant="outline" size="sm" className="ml-2" disabled>
-                      <img src={`https://img.icons8.com/?size=100&id=UeC6VYim0wNA&format=png&color=ffffff`} alt="Delete" className="h-4 w-4 mr-1" />{" "}
+                      <img
+                        src={`https://img.icons8.com/?size=100&id=UeC6VYim0wNA&format=png&color=${theme === "dark" ? "#fff" : "#000"}`}
+                        alt="Delete"
+                        className="h-4 w-4 mr-1"
+                      />{" "}
                       Teams Channel
                     </Button>
                     <Button variant="outline" disabled size="sm" className="ml-2">
                       <SlackIcon /> Slack Channel
                     </Button>
 
-                    {selectedEmails.includes("email") && (
+                    {selectedMethods.email && (
                       <>
                         {/* Email Selection */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 mt-4 ml-4">
                           <div className="flex items-center">
                             <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
                               <DialogTrigger asChild>
                                 <Button variant="outline" size="sm">
-                                  <Mail /> Email
+                                  <Plus /> New Email
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
@@ -608,14 +645,12 @@ const AlertManagement = () => {
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
-                                    <Label htmlFor="email">
-                                      <Mail /> Email Address
-                                    </Label>
                                     <Input
                                       id="email"
                                       type="email"
                                       placeholder="Enter email address"
                                       value={emailForm.email}
+                                      className={"mt-3"}
                                       onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
                                     />
                                   </div>
@@ -628,23 +663,17 @@ const AlertManagement = () => {
                           </div>
 
                           {verifiedEmails.length > 0 && (
-                            <div className="space-y-2">
+                            <div className="space-y-2 mt-2">
                               {verifiedEmails.map((emailObj, index) => (
                                 <div key={index} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`email-${index}`}
-                                    checked={selectedEmails.includes(emailObj.email)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedEmails([...selectedEmails, emailObj.email]);
-                                      } else {
-                                        setSelectedEmails(selectedEmails.filter((email) => email !== emailObj.email));
-                                      }
-                                    }}
-                                  />
-                                  <Label htmlFor={`email-${index}`} className="text-sm">
-                                    {emailObj.email}
-                                  </Label>
+                                  <RadioGroup value={selectedEmails} onValueChange={setSelectedEmails}>
+                                    <div key={index} className="flex items-center space-x-2">
+                                      <RadioGroupItem value={emailObj.email} id={`email-${index}`} />
+                                      <Label htmlFor={`email-${index}`} className="text-sm">
+                                        {emailObj.email}
+                                      </Label>
+                                    </div>
+                                  </RadioGroup>
                                 </div>
                               ))}
                             </div>
@@ -652,15 +681,16 @@ const AlertManagement = () => {
                         </div>
                       </>
                     )}
-
+                    {selectedMethods.webhook && (
+                      <div className="space-y-3">
+                        <Label className="flex items-center space-x-2">
+                          <Webhook className="h-4 w-4" />
+                          <span>Webhook URL (Optional)</span>
+                        </Label>
+                        <Input placeholder="https://your-webhook-url.com" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} />
+                      </div>
+                    )}
                     {/* Webhook */}
-                    <div className="space-y-3">
-                      <Label className="flex items-center space-x-2">
-                        <Webhook className="h-4 w-4" />
-                        <span>Webhook URL (Optional)</span>
-                      </Label>
-                      <Input placeholder="https://your-webhook-url.com" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} />
-                    </div>
                   </div>
 
                   <Button
@@ -688,7 +718,13 @@ const AlertManagement = () => {
                 </Alert>
                 <div>
                   <Label htmlFor="otp">Verification Code</Label>
-                  <Input id="otp" placeholder="Enter OTP" value={otpForm.otp} onChange={(e) => setOtpForm({ ...otpForm, otp: e.target.value })} />
+                  <Input
+                    id="otp"
+                    placeholder="Enter OTP"
+                    className={"mt-3"}
+                    value={otpForm.otp}
+                    onChange={(e) => setOtpForm({ ...otpForm, otp: e.target.value })}
+                  />
                 </div>
                 <Button onClick={handleVerifyEmail} disabled={verifyingEmail}>
                   {verifyingEmail ? "Verifying..." : "Verify Email"}
