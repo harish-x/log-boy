@@ -1,0 +1,22 @@
+{
+  "name": "alert-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start",
+    "dev": "func start --verbose",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "@elastic/elasticsearch": "^9.0.3",
+    "dotenv": "^17.2.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.16.3",
+    "redis": "^5.6.0"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.x"
+  }
+}

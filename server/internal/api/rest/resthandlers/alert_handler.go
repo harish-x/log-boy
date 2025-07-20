@@ -56,14 +56,16 @@ func (a *AlertHandler) GetAlert(ctx *fiber.Ctx) error {
 func (a *AlertHandler) CreateAlert(ctx *fiber.Ctx) error {
 
 	type RequestBody struct {
-		RuleType     string  `json:"rule_type"`
-		MetricName   string  `json:"metric_name"`
-		Operator     string  `json:"operator"`
-		Threshold    float32 `json:"threshold"`
-		TimeWindow   string  `json:"time_window"`
-		Severity     string  `json:"severity"`
-		ProjectName  string  `json:"project_name"`
-		AlertMethods []struct {
+		RuleType      string  `json:"rule_type"`
+		MetricName    string  `json:"metric_name"`
+		Operator      string  `json:"operator"`
+		Threshold     float32 `json:"threshold"`
+		TimeWindow    string  `json:"time_window"`
+		Severity      string  `json:"severity"`
+		ProjectName   string  `json:"project_name"`
+		LogField      string  `json:"log_field"`
+		LogFieldValue string  `json:"log_field_value"`
+		AlertMethods  []struct {
 			Method string `json:"method"`
 			Value  string `json:"value"`
 		} `json:"alert_methods"`
@@ -75,16 +77,18 @@ func (a *AlertHandler) CreateAlert(ctx *fiber.Ctx) error {
 	}
 
 	alert := models.Alert{
-		ProjectName: body.ProjectName,
-		RuleType:    body.RuleType,
-		MetricName:  body.MetricName,
-		Operator:    body.Operator,
-		Threshold:   body.Threshold,
-		TimeWindow:  body.TimeWindow,
-		Severity:    body.Severity,
-		Status:      "active",
+		ProjectName:   body.ProjectName,
+		RuleType:      body.RuleType,
+		MetricName:    body.MetricName,
+		Operator:      body.Operator,
+		Threshold:     body.Threshold,
+		TimeWindow:    body.TimeWindow,
+		LogField:      body.LogField,
+		LogFieldValue: body.LogFieldValue,
+		Severity:      body.Severity,
+		Status:        "active",
 	}
-
+	log.Print(alert)
 	var alertMethods []models.AlertMethods
 	for _, method := range body.AlertMethods {
 		alertMethods = append(alertMethods, models.AlertMethods{

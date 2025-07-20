@@ -45,6 +45,7 @@ const AlertManagement = () => {
   const [alertForm, setAlertForm] = useState({
     metric_name: "",
     log_field: "",
+    log_field_value: "",
     event_type: "",
     operator: ">=",
     threshold: "",
@@ -175,9 +176,9 @@ const AlertManagement = () => {
       if (selectedRuleType === "cpu_usage" || selectedRuleType === "memory_usage") {
         payload.rule_type = "metric_avg";
         payload.metric_name = selectedRuleType;
-      } else if (selectedRuleType === "response_status") {
+      } else if (selectedRuleType === "log_count") {
         payload.rule_type = "log_count";
-        payload.log_field = "responseStatus";
+        payload.log_field = alertForm.log_field;
       } else if (selectedRuleType === "server_restart") {
         payload.rule_type = "event_count";
         payload.event_type = "server_restart";
@@ -217,19 +218,12 @@ const AlertManagement = () => {
   };
 
   const theme = localStorage.getItem("vite-ui-theme");
-  const getRuleTypeLabel = (ruleType) => {
-    switch (ruleType) {
-      case "cpu_usage":
-        return "CPU Usage Monitoring";
-      case "memory_usage":
-        return "Memory Usage Monitoring";
-      case "response_status":
-        return "Response Status Monitoring";
-      case "server_restart":
-        return "Server Restart Detection";
-      default:
-        return "Unknown";
-    }
+  const handleLogFilterTypeChange = (value) => {
+    setAlertForm({
+      ...alertForm,
+      log_field: value,
+      log_field_value: "",
+    });
   };
 
   const getSeverityColor = (severity) => {
@@ -253,7 +247,7 @@ const AlertManagement = () => {
       });
     }
   };
-
+  console.log(alertForm);
   return (
     <div className=" p-6 space-y-6 border border-primary/[0.20] px-2 w-[98%] mx-auto rounded-2xl">
       <div className="relative mb-8">
@@ -266,10 +260,6 @@ const AlertManagement = () => {
             <p className="text-lg text-muted-foreground mt-2">Intelligent monitoring for your infrastructure</p>
           </div>
         </div>
-      </div>
-
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 blur-2xl"></div>
       </div>
       <Tabs defaultValue="create" className="relative w-full">
         <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm border shadow-lg">
@@ -383,12 +373,12 @@ const AlertManagement = () => {
 
                   <div
                     className={`group cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                      selectedRuleType === "response_status"
+                      selectedRuleType === "log_count"
                         ? "ring-2 ring-amber-500 shadow-lg shadow-amber-500/25"
                         : "hover:shadow-xl hover:shadow-amber-500/10"
                     }`}
                     onClick={() => {
-                      setSelectedRuleType("response_status");
+                      setSelectedRuleType("log_count");
                       scrollToTarget();
                     }}
                   >
@@ -499,6 +489,7 @@ const AlertManagement = () => {
               {selectedRuleType && (
                 <>
                   <Separator />
+
                   {/* Alert Configuration */}
                   <div className="space-y-6" ref={targetRef}>
                     <div className="text-center">
@@ -555,11 +546,149 @@ const AlertManagement = () => {
                         </div>
                       </div>
 
+                      {selectedRuleType === "log_count" && (
+                        <div className="space-y-4 border-t pt-6">
+                          <h3 className="text-lg font-semibold">Log Count Configuration</h3>
+
+                          <div className="space-y-4 p-4 ">
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-muted-foreground">Filter logs by:</span>
+                              <Select value={alertForm.log_field} onValueChange={handleLogFilterTypeChange}>
+                                <SelectTrigger className="w-[200px]">
+                                  <SelectValue placeholder="Select filter type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="level">
+                                    <div className="flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                      <span>Log Level</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="status_code">
+                                    <div className="flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                      <span>Status Code</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="ip_address">
+                                    <div className="flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                      <span>IP Address</span>
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Log Level Sub-options */}
+                            {alertForm.log_field === "level" && (
+                              <div className="ml-6 p-3 ">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm font-medium text-muted-foreground">Log level:</span>
+                                  <Select
+                                    value={alertForm.log_field_value}
+                                    onValueChange={(value) => setAlertForm({ ...alertForm, log_field_value: value })}
+                                  >
+                                    <SelectTrigger className="w-[150px]">
+                                      <SelectValue placeholder="Select level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="warn">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                          <span>WARN</span>
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="error">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                          <span>ERROR</span>
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="debug">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                          <span>DEBUG</span>
+                                        </div>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Status Code Sub-options */}
+                            {alertForm.log_field === "status_code" && (
+                              <div className="ml-6 p-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm font-medium text-muted-foreground">Status code range:</span>
+                                  <Select
+                                    value={alertForm.log_field_value}
+                                    onValueChange={(value) => setAlertForm({ ...alertForm, log_field_value: value })}
+                                  >
+                                    <SelectTrigger className="w-[200px]">
+                                      <SelectValue placeholder="Select range" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="4xx">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                          <span>4xx (400-499) - Client Errors</span>
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="5xx">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                          <span>5xx (500+) - Server Errors</span>
+                                        </div>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* IP Address indication */}
+                            {alertForm.log_filter_type === "ip_address" && (
+                              <div className="ml-6 p-3 bg-white rounded-md border border-green-200">
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                  <span>IP address filtering enabled. Logs will be grouped by source IP address.</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Section for defining the alert action */}
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Set Notification</h3>
                         <div className="flex items-center gap-3">
-                          <span className="font-medium">Severity level:</span>
+                          <span className="font-medium">Notification Severity level:</span>
                           <Select value={alertForm.severity} onValueChange={(value) => setAlertForm({ ...alertForm, severity: value })}>
                             <SelectTrigger className="w-[180px]">
                               <SelectValue placeholder="Select severity" />
@@ -681,6 +810,7 @@ const AlertManagement = () => {
                         </div>
                       </>
                     )}
+                    {/* Webhook */}
                     {selectedMethods.webhook && (
                       <div className="space-y-3">
                         <Label className="flex items-center space-x-2">
@@ -690,7 +820,6 @@ const AlertManagement = () => {
                         <Input placeholder="https://your-webhook-url.com" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} />
                       </div>
                     )}
-                    {/* Webhook */}
                   </div>
 
                   <Button
