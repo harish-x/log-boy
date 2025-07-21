@@ -167,6 +167,7 @@ async function processMetricAlert(alert) {
       return {
         triggered: true,
         data: {
+          type: alert.rule_type,
           metric_name: alert.metric_name,
           current_value: parseFloat(avgCpu.toFixed(2)),
         },
@@ -213,6 +214,7 @@ async function processMetricAlert(alert) {
       return {
         triggered: true,
         data: {
+          type: alert.rule_type,
           metric_name: alert.metric_name,
           current_value: parseFloat(avgMemory.toFixed(2)),
         },
@@ -273,6 +275,7 @@ async function processLogAlert(alert) {
       return {
         triggered: true,
         data: {
+          type: alert.rule_type,
           log_field: alert.log_field,
           log_field_value: alert.log_field_value,
           current_value: parseFloat(percentage.toFixed(2)),
@@ -358,6 +361,7 @@ async function processLogAlert(alert) {
       return {
         triggered: true,
         data: {
+          type: alert.rule_type,
           log_field: alert.log_field,
           log_field_value: alert.log_field_value,
           current_value: parseFloat(percentage.toFixed(2)),
@@ -423,6 +427,7 @@ async function processLogAlert(alert) {
       return {
         triggered: true,
         data: {
+          type: alert.rule_type,
           log_field: alert.log_field,
           log_field_value: alert.log_field_value,
           current_value: triggeredIp.percentage,
@@ -509,6 +514,7 @@ async function processEventAlert(alert) {
     return {
       triggered: true,
       data: {
+        type: alert.rule_type,
         log_field: alert.log_field,
         log_field_value: alert.log_field_value,
         current_value: triggeredMessage.percentage,

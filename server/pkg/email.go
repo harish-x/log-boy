@@ -36,36 +36,6 @@ const OtpTemplate = `
     </body>
   </html>`
 
-// AlertTemplate is a simple HTML template for a system alert.
-const AlertTemplate = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>System Alert</title>
-<style>
-  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-  .container { width: 80%; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #FFFBEA; }
-  .header { font-size: 24px; color: #D83B01; }
-  .content { margin-top: 20px; }
-  .footer { margin-top: 30px; font-size: 12px; color: #777; }
-</style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">Important {{type}} Alert</div>
-    <div class="content">
-      <p>Hello,</p>
-      <p>This is an important notification:</p>
-      <p><strong>{{message}}</strong></p>
-    </div>
-    <div class="footer">
-      <p>This is an automated message. Please do not reply.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
-
 // --- REST API Data Structures ---
 
 // Defines the structure for the JSON payload sent to the Azure API.
@@ -129,6 +99,8 @@ func SendMail(recipientMail, templateName, subject, message string) error {
 		tempContent := strings.Replace(OtpTemplate, "{{otp}}", message, 1)
 		tempContent = strings.Replace(tempContent, "{{date}}", time.Now().Format("2006-01-02"), 1)
 		htmlContent = tempContent
+	case "alert":
+		htmlContent = message
 	default:
 		return fmt.Errorf("unknown template name: %s", templateName)
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"server/pkg"
 	"strings"
 	"time"
 
@@ -15,12 +16,14 @@ import (
 type AlertMessage struct {
 	MetricName   string    `json:"metric_name"`
 	CurrentValue float64   `json:"current_value"`
+	Type         string    `json:"type"`
 	ID           string    `json:"id"`
 	ProjectName  string    `json:"project_name"`
 	Operator     string    `json:"operator"`
 	Threshold    string    `json:"threshold"`
 	TimeWindow   string    `json:"time_window"`
 	RuleType     string    `json:"rule_type"`
+	LogField     string    `json:"log_field"`
 	Methods      []Method  `json:"methods"`
 	Timestamp    time.Time `json:"timestamp"`
 	Priority     string    `json:"priority"`
@@ -83,7 +86,15 @@ func (am *AlertMonitor) processAlert(ctx context.Context, payload string) error 
 		return fmt.Errorf("failed to parse alert message: %w", err)
 	}
 
-	indexName := fmt.Sprintf("alerts-%s-%s", alert.ProjectName, alert.Timestamp)
+	indexName := fmt.Sprintf("alerts-%s-%s", strings.ToLower(strings.ReplaceAll(alert.ProjectName, " ", "_")), alert.Timestamp.Format("2006-01-02"))
+
+	for _, method := range alert.Methods {
+		if method.Method == "email" {
+			subject, message := formatAlertMessage(alert)
+			pkg.SendMail(method.Value, "alert", subject, message)
+		}
+	}
+
 	// Save to Elasticsearch
 	if err := am.saveToElasticsearch(ctx, indexName, alert); err != nil {
 		return fmt.Errorf("failed to save to Elasticsearch: %w", err)
@@ -121,35 +132,92 @@ func (am *AlertMonitor) saveToElasticsearch(ctx context.Context, indexName strin
 	return nil
 }
 
-// StopMonitoring gracefully stops the monitoring process
-func (am *AlertMonitor) StopMonitoring() {
-	log.Println("Stopping alert monitoring...")
-}
+func formatAlertMessage(alert AlertMessage) (subject, message string) {
+	// Common subject format
+	subject = fmt.Sprintf("[%s Alert] %s in %s", strings.ToUpper(alert.Priority), alert.MetricName, alert.ProjectName)
 
-// Example usage
-func main() {
-	// Initialize Redis client
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password
-		DB:       0,  // default DB
-	})
+	var body strings.Builder
 
-	// Initialize Elasticsearch client
-	es, err := elasticsearch.NewDefaultClient()
-	if err != nil {
-		log.Fatalf("Error creating Elasticsearch client: %s", err)
+	body.WriteString("<html><body style='font-family: Arial, sans-serif;'>")
+	body.WriteString("<h2 style='color: #d9534f;'>Alert Notification</h2>")
+
+	// Common alert information
+	body.WriteString("<div style='margin-bottom: 15px;'>")
+	body.WriteString(fmt.Sprintf("<p><strong>Project:</strong> %s</p>", alert.ProjectName))
+	body.WriteString(fmt.Sprintf("<p><strong>Alert ID:</strong> %s</p>", alert.ID))
+	body.WriteString(fmt.Sprintf("<p><strong>Priority:</strong> %s</p>", alert.Priority))
+	body.WriteString(fmt.Sprintf("<p><strong>Triggered at:</strong> %s</p>", alert.Timestamp.Format(time.RFC1123)))
+	body.WriteString("</div>")
+
+	// Alert-specific details
+	body.WriteString("<div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;'>")
+	body.WriteString("<h3 style='color: #337ab7;'>Alert Details</h3>")
+
+	switch alert.Type {
+	case "metric_avg":
+		body.WriteString(fmt.Sprintf("<p>The average <strong>%s</strong> is currently <strong>%.2f</strong> which is %s the threshold of <strong>%s</strong>.</p>",
+			alert.MetricName, alert.CurrentValue, getOperatorText(alert.Operator), alert.Threshold))
+
+		// metric-specific guidance
+		switch alert.MetricName {
+		case "cpu_usage":
+			body.WriteString("<p>This indicates that your system CPU usage has exceeded normal levels.</p>")
+		case "memory_usage":
+			body.WriteString("<p>This indicates that your system memory usage has exceeded normal levels.</p>")
+		}
+
+	case "log_count", "event_count":
+		body.WriteString(fmt.Sprintf("<p>The count of logs with <strong>%s</strong> %s <strong>%s</strong> is currently <strong>%.0f</strong> which exceeds the threshold of <strong>%s</strong> within the time window of <strong>%s</strong>.</p>",
+			alert.LogField, getOperatorText(alert.Operator), alert.Threshold, alert.CurrentValue, alert.Threshold, alert.TimeWindow))
+
+		// log-specific guidance
+		switch alert.LogField {
+		case "status_code":
+			body.WriteString("<p>This indicates an unusual number of HTTP status codes being returned.</p>")
+		case "level":
+			body.WriteString("<p>This indicates an unusual number of log messages at this severity level.</p>")
+		case "ip_address":
+			body.WriteString("<p>This indicates an unusual number of requests from a specific IP address.</p>")
+		}
 	}
 
-	// Create AlertMonitor instance
-	monitor := NewAlertMonitor(rdb, es)
+	body.WriteString("</div>")
 
-	// Create context for graceful shutdown
-	ctx := context.Background()
+	body.WriteString("<div style='background-color: #e7f4ff; padding: 15px; border-radius: 5px;'>")
+	body.WriteString("<h3 style='color: #337ab7;'>Recommended Actions</h3>")
+	body.WriteString("<ul>")
+	body.WriteString("<li>Review the metric/log details in your monitoring dashboard</li>")
+	body.WriteString("<li>Check system health and recent deployments</li>")
+	body.WriteString("<li>If this is unexpected, investigate potential issues</li>")
+	body.WriteString("<li>Consider adjusting thresholds if alerts are too frequent</li>")
+	body.WriteString("</ul>")
+	body.WriteString("</div>")
 
-	// Start monitoring (this will block)
-	log.Println("Starting alert monitoring...")
-	if err := monitor.StartMonitoring(ctx); err != nil {
-		log.Fatalf("Error in monitoring: %v", err)
+	// Footer
+	body.WriteString("<div style='margin-top: 20px; font-size: 12px; color: #777;'>")
+	body.WriteString(fmt.Sprintf("<p>Alert generated by %s (v%s)</p>", alert.Source, alert.Version))
+	body.WriteString("</div>")
+
+	body.WriteString("</body></html>")
+
+	return subject, body.String()
+}
+
+func getOperatorText(op string) string {
+	switch op {
+	case ">":
+		return "above"
+	case ">=":
+		return "above or equal to"
+	case "<":
+		return "below"
+	case "<=":
+		return "below or equal to"
+	case "==":
+		return "equal to"
+	case "!=":
+		return "not equal to"
+	default:
+		return op
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"server/internal/api/rest"
 	"server/internal/log_consumer"
 	"server/internal/metrics_consumer"
+	"server/internal/redis_pubsub"
 	serversentevents "server/internal/services/server_sent_events"
 	"strings"
 	"sync"
@@ -32,6 +33,10 @@ func main() {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
 	brokers := strings.Split(cfg.KafkaBrokers, ",")
+	redisClient, err := config.NewRedis(cfg.RedisDNS, cfg.RedisPAssword, 0)
+	if err != nil {
+		log.Fatalf("Failed to load env variables: %v", err)
+	}
 
 	errChan := make(chan error, 2)
 	ktm, err := config.NewKafkaTopicManager(brokers)
@@ -87,6 +92,17 @@ func main() {
 
 		if err := consumerService.Start(ctx, "metrics-", ktm, time.Minute*2); err != nil {
 			errChan <- fmt.Errorf("kafka metrics consumer error: %w", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		alertMonitor := redis_pubsub.NewAlertMonitor(redisClient, elasticSearch)
+		err := alertMonitor.StartMonitoring(ctx)
+		if err != nil {
+			errChan <- fmt.Errorf("failed monitor alert from redis: %w", err)
+			return
 		}
 	}()
 
