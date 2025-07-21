@@ -1,7 +1,7 @@
 const { app } = require("@azure/functions");
 const pg = require("../config/pg");
 const esclient = require("../config/elasticsearch");
-const redis = require("../config/redis");
+const { client, multiExecAsync } = require("../config/redis");
 const {
   formatAlertMethods,
   operators,
@@ -523,51 +523,36 @@ async function processEventAlert(alert) {
 
 // Filter out alerts using Redis
 async function filterRecentAlertsWithRedis(alerts, context) {
-  if (alerts.length === 0) {
-    return [];
-  }
+  if (alerts.length === 0) return [];
 
   const filteredAlerts = [];
+  const commands = [];
+  const alertKeys = [];
+
+  for (const alert of alerts) {
+    const alertKey = createAlertCacheKey(alert);
+    const redisKey = `${ALERT_CACHE_PREFIX}${alertKey}`;
+    alertKeys.push({ alert, redisKey });
+    commands.push(["GET", redisKey]);
+  }
 
   try {
-    const pipeline = redis.multi();
-    const alertKeys = [];
-
-    for (const alert of alerts) {
-      const alertKey = createAlertCacheKey(alert);
-      const redisKey = `${ALERT_CACHE_PREFIX}${alertKey}`;
-      alertKeys.push({ alert, redisKey });
-      pipeline.get(redisKey);
-    }
-
-    const results = await pipeline.exec();
+    const results = await multiExecAsync(commands);
 
     for (let i = 0; i < alertKeys.length; i++) {
       const { alert, redisKey } = alertKeys[i];
-      const [err, lastSentTime] = results[i];
-
-      if (err) {
-        context.error(`Redis error for key ${redisKey}:`, err);
-        filteredAlerts.push(alert);
-        continue;
-      }
-
+      const lastSentTime = results[i];
       const now = Math.floor(Date.now() / 1000);
 
       if (!lastSentTime || now - parseInt(lastSentTime) > ALERT_COOLDOWN_PERIOD) {
         filteredAlerts.push(alert);
-
-        try {
-          await redis.setex(redisKey, ALERT_COOLDOWN_PERIOD, now.toString());
-        } catch (setError) {
-          context.error(`Failed to set Redis cache for ${redisKey}:`, setError);
-        }
+        await client.setEx(redisKey, ALERT_COOLDOWN_PERIOD, now.toString());
       } else {
         context.log(`Alert skipped due to cooldown: ${redisKey}`);
       }
     }
   } catch (error) {
-    context.error("Redis pipeline error:", error);
+    context.error("Redis error:", error);
     return alerts;
   }
 
@@ -583,9 +568,35 @@ async function publishAlertsToRedis(alerts, context) {
   context.log(`Publishing ${alerts.length} alerts to Redis channel: ${ALERT_PUBSUB_CHANNEL}`);
 
   try {
-    const pipeline = redis.multi();
+    const commands = alerts.map((alert) => [
+      "PUBLISH",
+      ALERT_PUBSUB_CHANNEL,
+      JSON.stringify({
+        ...alert,
+        published_at: new Date().toISOString(),
+        source: "alert-cron",
+        version: "1.0",
+      }),
+    ]);
 
-    for (const alert of alerts) {
+    const results = await multiExecAsync(commands);
+
+    for (let i = 0; i < results.length; i++) {
+      const subscribers = results[i];
+      const alert = alerts[i];
+
+      context.log(`Alert published for project ${alert.project_name}: ` + `${alert.rule_type} (${subscribers} subscribers)`);
+    }
+  } catch (error) {
+    context.error("Failed to publish alerts to Redis:", error);
+
+    await publishAlertsIndividually(alerts, context);
+  }
+}
+
+async function publishAlertsIndividually(alerts, context) {
+  for (const alert of alerts) {
+    try {
       const alertPayload = {
         ...alert,
         published_at: new Date().toISOString(),
@@ -593,43 +604,20 @@ async function publishAlertsToRedis(alerts, context) {
         version: "1.0",
       };
 
-      pipeline.publish(ALERT_PUBSUB_CHANNEL, JSON.stringify(alertPayload));
-    }
+      const subscribers = await publishAsync(ALERT_PUBSUB_CHANNEL, JSON.stringify(alertPayload));
 
-    const results = await pipeline.exec();
+      context.log(`Alert published (fallback) for project ${alert.project_name}: ` + `${alert.rule_type} (${subscribers} subscribers)`);
+    } catch (error) {
+      context.error(`Failed to publish individual alert ${alert.id}:`, error);
 
-    let normalizedResults = results;
-    if (Array.isArray(results) && results.length === 1 && !Array.isArray(results[0])) {
-      normalizedResults = [[null, results[0]]];
-    }
-
-    for (let i = 0; i < normalizedResults.length; i++) {
-      const [err, subscribers] = normalizedResults[i];
-      const alert = alerts[i];
-
-      if (err) {
-        context.error(`Failed to publish alert ${alert.id}:`, err);
-      } else {
-        context.log(`Alert published for project ${alert.project_name}: ${alert.rule_type} (${subscribers} subscribers)`);
-      }
-    }
-  } catch (error) {
-    context.error("Failed to publish alerts to Redis:", error);
-
-    for (const alert of alerts) {
-      try {
-        const alertPayload = {
-          ...alert,
-          published_at: new Date().toISOString(),
-          source: "alert-cron",
-          version: "1.0",
-        };
-
-        const subscribers = await redis.publish(ALERT_PUBSUB_CHANNEL, JSON.stringify(alertPayload));
-        context.log(`Alert published (fallback) for project ${alert.project_name}: ${alert.rule_type} (${subscribers} subscribers)`);
-      } catch (individualError) {
-        context.error(`Failed to publish individual alert ${alert.id}:`, individualError);
-      }
+      await handleFailedAlert(alert, error, context);
     }
   }
+}
+
+async function handleFailedAlert(alert, error, context) {
+  context.error(`CRITICAL: Alert ${alert.id} failed to publish after retries`, {
+    alert,
+    error,
+  });
 }
