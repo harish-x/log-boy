@@ -10,7 +10,6 @@ import (
 	"server/internal/api/rest"
 	"server/internal/log_consumer"
 	"server/internal/metrics_consumer"
-	"server/internal/services"
 	serversentevents "server/internal/services/server_sent_events"
 	"strings"
 	"sync"
@@ -45,7 +44,7 @@ func main() {
 	if err != nil {
 		errChan <- fmt.Errorf("failed to Start kafka topic manager : %v", err)
 	}
-	logSSE := services.NewSSEService()
+	logSSE := serversentevents.NewSSEService()
 	metricSSE := serversentevents.NewSSEMetricsService()
 	wg.Add(1)
 	go func() {

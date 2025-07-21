@@ -5,7 +5,6 @@ import (
 	"log"
 	"server/config"
 	"server/internal/api/rest/resthandlers"
-	"server/internal/services"
 	serversentevents "server/internal/services/server_sent_events"
 
 	"github.com/elastic/go-elasticsearch/v9"
@@ -13,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager, LogSSE *services.SSEService, metricSSE *serversentevents.SSEMetricsService) error {
+func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *elasticsearch.Client, ktm *config.KafkaTopicManager, LogSSE *serversentevents.SSEService, metricSSE *serversentevents.SSEMetricsService) error {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  "http://localhost:5173",
@@ -56,7 +55,7 @@ func StartRestServer(ctx context.Context, cfg config.AppConfig, elasticSearch *e
 	return app.Listen(cfg.ServerPort)
 }
 
-func SetupRoutes(h *resthandlers.RestHandler, l *services.SSEService, m *serversentevents.SSEMetricsService) {
+func SetupRoutes(h *resthandlers.RestHandler, l *serversentevents.SSEService, m *serversentevents.SSEMetricsService) {
 	resthandlers.SetupProjectRoutes(h)
 	resthandlers.SetupLogsRoutes(h, l)
 	resthandlers.SetupMetricsHandler(h, m)

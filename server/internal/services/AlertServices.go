@@ -7,7 +7,7 @@ import (
 	"server/internal/api/dto"
 	"server/internal/models"
 	"server/internal/repository"
-	"strconv"
+	"server/pkg"
 	"time"
 )
 
@@ -82,17 +82,18 @@ func (as *AlertServices) RequestEmailVerify(p *dto.CreateVerifyEmail) error {
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var OTP string
-	OTP = ""
-	for range 6 {
-		OTP = OTP + strconv.Itoa(r.Intn(100))
-	}
+	OTP = fmt.Sprintf("%06d", r.Intn(1000000))
 
 	verify := models.MailVerify{
 		Email: p.Email,
 		OTP:   OTP,
 	}
-	log.Print(OTP)
 	err = as.Repo.CreateEmailVerifyRequest(&verify)
+	if err != nil {
+		return fmt.Errorf("internal Server Error")
+	}
+	subject := "OTP for LogBoy - " + p.Project + " "
+	err = pkg.SendMail(p.Email, "otp", subject, OTP)
 	if err != nil {
 		return fmt.Errorf("internal Server Error")
 	}

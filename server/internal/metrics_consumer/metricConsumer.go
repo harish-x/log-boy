@@ -43,6 +43,7 @@ func (h *ConsumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
 
 func (h *ConsumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 	log.Println("Consumer group session cleanup")
+
 	return nil
 }
 

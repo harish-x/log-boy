@@ -20,6 +20,8 @@ type AppConfig struct {
 	KafkaBrokers            string
 	SchemaRegistryURL       string
 	ElasticsearchCloudID    string
+	AzureCommunicationDNS   string
+	AzureEmailSenderAddress string
 }
 
 func SetupEnv() (AppConfig, error) {
@@ -37,6 +39,8 @@ func SetupEnv() (AppConfig, error) {
 		AzureStorageAccountName: os.Getenv("AZURE_STORAGE_ACCOUNT_NAME"),
 		ColdStorageContainer:    os.Getenv("COLD_STORAGE_CONTAINER"),
 		AzureStorageKey:         os.Getenv("AZURE_STORAGE_KEY"),
+		AzureCommunicationDNS:   os.Getenv("AZURE_COMMUNICATION_DNS"),
+		AzureEmailSenderAddress: os.Getenv("AZURE_EMAIL_SENDER_ADDRESS"),
 		KafkaBrokers:            os.Getenv("KAFKA_BROKERS"),
 		SchemaRegistryURL:       os.Getenv("SCHEMA_REGISTRY_URL"),
 		ElasticSearchToken:      os.Getenv("ELASTIC_SEARCH_TOKEN"),

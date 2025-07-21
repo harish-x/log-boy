@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"server/internal/services"
+	"server/internal/services/server_sent_events"
 	"sort"
 	"strings"
 	"sync"
@@ -100,7 +100,7 @@ type DefaultLogProcessor struct {
 	batchSize      int
 	flushInterval  time.Duration
 	mutex          sync.RWMutex
-	logSSE         *services.SSEService
+	logSSE         *serversentevents.SSEService
 }
 
 type ServiceBatch struct {
@@ -134,7 +134,7 @@ type BuildDetails struct {
 	AppVersion  string `json:"appVersion"`
 }
 
-func NewDefaultLogProcessor(es *elasticsearch.Client, l *services.SSEService) *DefaultLogProcessor {
+func NewDefaultLogProcessor(es *elasticsearch.Client, l *serversentevents.SSEService) *DefaultLogProcessor {
 	return &DefaultLogProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),

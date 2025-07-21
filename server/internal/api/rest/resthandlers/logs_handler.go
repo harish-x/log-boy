@@ -7,6 +7,7 @@ import (
 	"server/internal/api/dto"
 	"server/internal/repository"
 	"server/internal/services"
+	"server/internal/services/server_sent_events"
 	"server/pkg"
 	"slices"
 	"strconv"
@@ -18,10 +19,10 @@ import (
 
 type LogsHandler struct {
 	svc services.LogServices
-	sse *services.SSEService
+	sse *serversentevents.SSEService
 }
 
-func SetupLogsRoutes(r *RestHandler, l *services.SSEService) {
+func SetupLogsRoutes(r *RestHandler, l *serversentevents.SSEService) {
 	app := r.App
 	svc := services.LogServices{
 		Repo:   repository.NewLogRepo(r.ElasticSearch, r.SynapseDb),
@@ -198,7 +199,7 @@ func (h *LogsHandler) GetLogsFromColdStorage(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, err)
 	}
-	if !exists{
+	if !exists {
 		return ErrorMessage(c, fiber.StatusBadRequest, "project not found")
 	}
 	if archivedLogs, err := h.svc.ListAllLogsFromStorage(project); err != nil || !slices.Contains(archivedLogs, fileName) {
