@@ -17,7 +17,7 @@ type Client struct {
 	Connected bool       // Track connection state
 }
 
-type SSEService struct {
+type SSELogService struct {
 	mu              sync.RWMutex
 	Clients         map[string]*Client
 	ProjectClients  map[string]map[string]*Client // Store client pointers instead of channels
@@ -25,8 +25,8 @@ type SSEService struct {
 	shutdownChans   map[string]chan struct{} // For graceful goroutine shutdown
 }
 
-func NewSSEService() *SSEService {
-	return &SSEService{
+func NewSSELogsService() *SSELogService {
+	return &SSELogService{
 		Clients:         make(map[string]*Client),
 		ProjectClients:  make(map[string]map[string]*Client),
 		ProjectChannels: make(map[string]chan models.Log),
@@ -34,7 +34,7 @@ func NewSSEService() *SSEService {
 	}
 }
 
-func (s *SSEService) RegisterClient(clientID, project string) {
+func (s *SSELogService) RegisterLogsClient(clientID, project string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -56,7 +56,7 @@ func (s *SSEService) RegisterClient(clientID, project string) {
 
 		// Clean up an old client if it's stale or different project
 		log.Printf("Client %s exists but is stale or different project, cleaning up", clientID)
-		s.unregisterClientUnsafe(clientID, existingClient)
+		s.unregisterLogsClientUnsafe(clientID, existingClient)
 	}
 
 	// Create a new client
@@ -88,7 +88,7 @@ func (s *SSEService) RegisterClient(clientID, project string) {
 	}
 }
 
-func (s *SSEService) UnregisterClient(clientID string) {
+func (s *SSELogService) UnregisterLogsClient(clientID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -111,7 +111,7 @@ func (s *SSEService) UnregisterClient(clientID string) {
 
 				if stillDisconnected {
 					log.Printf("Cleaning up disconnected client after delay: %s", clientID)
-					s.unregisterClientUnsafe(clientID, client)
+					s.unregisterLogsClientUnsafe(clientID, client)
 				}
 			}
 		}()
@@ -122,8 +122,8 @@ func (s *SSEService) UnregisterClient(clientID string) {
 	}
 }
 
-// unregisterClientUnsafe must be called with mutex held
-func (s *SSEService) unregisterClientUnsafe(clientID string, client *Client) {
+// unregisterLogsClientUnsafe must be called with mutex held
+func (s *SSELogService) unregisterLogsClientUnsafe(clientID string, client *Client) {
 	log.Printf("Unregistering client: %s", clientID)
 
 	// Close client channel safely
@@ -167,7 +167,7 @@ func (s *SSEService) unregisterClientUnsafe(clientID string, client *Client) {
 	log.Printf("Successfully unregistered client: %s", clientID)
 }
 
-func (s *SSEService) fanOutLogs(project string, projectChan chan models.Log, shutdownChan chan struct{}) {
+func (s *SSELogService) fanOutLogs(project string, projectChan chan models.Log, shutdownChan chan struct{}) {
 	log.Printf("Fan-out goroutine started for project: %s", project)
 	defer log.Printf("Fan-out goroutine stopped for project: %s", project)
 
@@ -208,10 +208,9 @@ func (s *SSEService) fanOutLogs(project string, projectChan chan models.Log, shu
 	}
 }
 
-func (s *SSEService) BroadcastLogs(project string, logEntry *models.Log) {
+func (s *SSELogService) BroadcastLogs(project string, logEntry *models.Log) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	if projectChan, ok := s.ProjectChannels[project]; ok {
 		select {
 		case projectChan <- *logEntry:
@@ -222,7 +221,7 @@ func (s *SSEService) BroadcastLogs(project string, logEntry *models.Log) {
 	}
 }
 
-func (s *SSEService) GetClientChannel(clientID string) (chan models.Log, bool) {
+func (s *SSELogService) GetLogClientChannel(clientID string) (chan models.Log, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -241,8 +240,8 @@ func (s *SSEService) GetClientChannel(clientID string) (chan models.Log, bool) {
 	return client.Channel, true
 }
 
-// UpdateClientActivity updates the last seen time for a client
-func (s *SSEService) UpdateClientActivity(clientID string) {
+// UpdateLogClientActivity updates the last seen time for a client
+func (s *SSELogService) UpdateLogClientActivity(clientID string) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -253,8 +252,8 @@ func (s *SSEService) UpdateClientActivity(clientID string) {
 	}
 }
 
-// CleanupStaleClients removes clients that might be stalled
-func (s *SSEService) CleanupStaleClients() {
+// CleanupLogsStaleClients removes clients that might be stalled
+func (s *SSELogService) CleanupLogsStaleClients() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	staleThreshold := 5 * time.Minute
@@ -266,7 +265,7 @@ func (s *SSEService) CleanupStaleClients() {
 
 		if isStale {
 			log.Printf("Cleaning up stale client: %s", clientID)
-			s.unregisterClientUnsafe(clientID, client)
+			s.unregisterLogsClientUnsafe(clientID, client)
 		}
 	}
 }

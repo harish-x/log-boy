@@ -117,7 +117,7 @@ func (a *AlertRepo) CheckIsEmailVerified(email, project string) (bool, error) {
 	return true, nil
 }
 
-func (a *AlertRepo) GetAlerts(project string) ([]*models.Alert, error) {
+func (a *AlertRepo) GetAlertRules(project string) ([]*models.Alert, error) {
 	var alerts []*models.Alert
 	err := a.db.Model(&models.Alert{}).Where("project_name = ?", project).Find(&alerts).Error
 	if err != nil {

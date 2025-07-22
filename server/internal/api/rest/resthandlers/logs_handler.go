@@ -19,10 +19,10 @@ import (
 
 type LogsHandler struct {
 	svc services.LogServices
-	sse *serversentevents.SSEService
+	sse *serversentevents.SSELogService
 }
 
-func SetupLogsRoutes(r *RestHandler, l *serversentevents.SSEService) {
+func SetupLogsRoutes(r *RestHandler, l *serversentevents.SSELogService) {
 	app := r.App
 	svc := services.LogServices{
 		Repo:   repository.NewLogRepo(r.ElasticSearch, r.SynapseDb),
@@ -236,13 +236,13 @@ func (h *LogsHandler) StreamLogs(c *fiber.Ctx) error {
 	c.Set("Transfer-Encoding", "chunked")
 
 	// Register client
-	h.sse.RegisterClient(clientID, project)
+	h.sse.RegisterLogsClient(clientID, project)
 
 	// Get a client channel
-	clientChan, ok := h.sse.GetClientChannel(clientID)
+	clientChan, ok := h.sse.GetLogClientChannel(clientID)
 	if !ok {
 		log.Printf("No client channel found for ClientID: %s", clientID)
-		h.sse.UnregisterClient(clientID)
+		h.sse.UnregisterLogsClient(clientID)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get client channel"})
 	}
 
@@ -250,7 +250,7 @@ func (h *LogsHandler) StreamLogs(c *fiber.Ctx) error {
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		defer func() {
 			log.Printf("Exiting stream writer for client: %s", clientID)
-			h.sse.UnregisterClient(clientID)
+			h.sse.UnregisterLogsClient(clientID)
 		}()
 
 		// Send initial connection confirmation
@@ -287,7 +287,7 @@ func (h *LogsHandler) StreamLogs(c *fiber.Ctx) error {
 						return
 					}
 					// Update client activity
-					h.sse.UpdateClientActivity(clientID)
+					h.sse.UpdateLogClientActivity(clientID)
 				case <-done:
 					return
 				}
@@ -321,7 +321,7 @@ func (h *LogsHandler) StreamLogs(c *fiber.Ctx) error {
 				}
 
 				// Update client activity
-				h.sse.UpdateClientActivity(clientID)
+				h.sse.UpdateLogClientActivity(clientID)
 
 			case <-done:
 				return

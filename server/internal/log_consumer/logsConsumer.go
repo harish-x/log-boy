@@ -100,7 +100,7 @@ type DefaultLogProcessor struct {
 	batchSize      int
 	flushInterval  time.Duration
 	mutex          sync.RWMutex
-	logSSE         *serversentevents.SSEService
+	logSSE         *serversentevents.SSELogService
 }
 
 type ServiceBatch struct {
@@ -134,11 +134,11 @@ type BuildDetails struct {
 	AppVersion  string `json:"appVersion"`
 }
 
-func NewDefaultLogProcessor(es *elasticsearch.Client, l *serversentevents.SSEService) *DefaultLogProcessor {
+func NewDefaultLogProcessor(es *elasticsearch.Client, l *serversentevents.SSELogService) *DefaultLogProcessor {
 	return &DefaultLogProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),
-		batchSize:      100,
+		batchSize:      1000,
 		flushInterval:  5 * time.Second,
 		logSSE:         l,
 	}
@@ -179,7 +179,7 @@ func (p *DefaultLogProcessor) ProcessLog(logMessage *protogen.Log, topic string,
 		Partition:      partition,
 		Offset:         offset,
 	}
-	if client, ok := p.logSSE.GetClientChannel(serviceName); ok {
+	if client, ok := p.logSSE.GetLogClientChannel(serviceName); ok {
 		log.Printf("Client channel found for service: %v", client)
 	}
 	if len(p.logSSE.Clients) > 0 {

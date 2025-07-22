@@ -49,13 +49,12 @@ func main() {
 	if err != nil {
 		errChan <- fmt.Errorf("failed to Start kafka topic manager : %v", err)
 	}
-	logSSE := serversentevents.NewSSEService()
-	metricSSE := serversentevents.NewSSEMetricsService()
+	sse := serversentevents.NewSSEService()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Println("REST server starting...")
-		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm, logSSE, metricSSE); err != nil {
+		if err := rest.StartRestServer(ctx, cfg, elasticSearch, ktm, sse); err != nil {
 			errChan <- fmt.Errorf("REST server error: %w", err)
 		}
 	}()
@@ -65,7 +64,7 @@ func main() {
 		defer wg.Done()
 		log.Println("Kafka consumer starting...")
 
-		processor := log_consumer.NewDefaultLogProcessor(elasticSearch, logSSE)
+		processor := log_consumer.NewDefaultLogProcessor(elasticSearch, sse.LogSSE)
 		consumerGroupID := "log-consumer-group"
 		consumerService, err := log_consumer.NewKafkaConsumerService(&cfg, processor, consumerGroupID)
 		if err != nil {
@@ -82,7 +81,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch, metricSSE)
+		processor := metrics_consumer.NewDefaultMetricsProcessor(elasticSearch, sse.MetricSSE)
 		consumerGroupId := "metrics-consumer-group"
 		consumerService, err := metrics_consumer.NewKafkaConsumerService(&cfg, processor, consumerGroupId)
 		if err != nil {
@@ -98,7 +97,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		alertMonitor := redis_pubsub.NewAlertMonitor(redisClient, elasticSearch)
+		alertMonitor := redis_pubsub.NewAlertMonitor(redisClient, elasticSearch, sse.AlertSSE)
 		err := alertMonitor.StartMonitoring(ctx)
 		if err != nil {
 			errChan <- fmt.Errorf("failed monitor alert from redis: %w", err)

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"server/internal/api/dto"
 	"server/internal/models"
 
 	"github.com/elastic/go-elasticsearch/v9"
@@ -8,8 +9,8 @@ import (
 )
 
 type AlertsRepo interface {
-	GetAlerts(project string) ([]*models.Alert, error)
-	GetAlert(project, id string)
+	GetAlertRules(project string) ([]*models.Alert, error)
+	GetAlerts(project string) (*[]dto.AlertMessage, error)
 	CreateAlert(alert *models.Alert) (*models.Alert, error)
 	UpdateAlert(alert *models.Alert) error
 	DeleteAlert(id string) error

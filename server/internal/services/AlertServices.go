@@ -112,8 +112,8 @@ func (as *AlertServices) UpdateAlert(alert *models.Alert) error {
 	return nil
 }
 
-func (as *AlertServices) GetAlerts(projectName string) ([]*models.Alert, error) {
-	alerts, err := as.Repo.GetAlerts(projectName)
+func (as *AlertServices) GetAlertRules(projectName string) ([]*models.Alert, error) {
+	alerts, err := as.Repo.GetAlertRules(projectName)
 	if err != nil {
 		return nil, err
 	}
@@ -125,4 +125,20 @@ func (as *AlertServices) DeleteAlert(id string) error {
 		return err
 	}
 	return nil
+}
+
+func (as *AlertServices) CheckProjectExists(projectName string) (bool, error) {
+	exists, err := as.Repo.CheckIfProjectExists(projectName)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (as *AlertServices) GetAlerts(projectName string) (*[]dto.AlertMessage, error) {
+	alerts, err := as.Repo.GetAlerts(projectName)
+	if err != nil {
+		return nil, err
+	}
+	return alerts, nil
 }

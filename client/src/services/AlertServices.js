@@ -29,6 +29,9 @@ export const AlertServices = reAuthQuery.injectEndpoints({
         body: data,
       }),
     }),
+    getAlerts: builder.query({
+      query: (data) => `alerts/${data}/old_alerts`,
+    }),
   }),
 });
 
@@ -38,4 +41,5 @@ export const {
   useCreateAlertEmailMutation,
   useVerifyAlertEmailMutation,
   useCreateAlertRuleMutation,
+  useLazyGetAlertsQuery,
 } = AlertServices;

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"server/internal/api/dto"
+	serversentevents "server/internal/services/server_sent_events"
 	"server/pkg"
 	"strings"
 	"time"
@@ -13,39 +15,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type AlertMessage struct {
-	MetricName   string    `json:"metric_name"`
-	CurrentValue float64   `json:"current_value"`
-	Type         string    `json:"type"`
-	ID           string    `json:"id"`
-	ProjectName  string    `json:"project_name"`
-	Operator     string    `json:"operator"`
-	Threshold    string    `json:"threshold"`
-	TimeWindow   string    `json:"time_window"`
-	RuleType     string    `json:"rule_type"`
-	LogField     string    `json:"log_field"`
-	Methods      []Method  `json:"methods"`
-	Timestamp    time.Time `json:"timestamp"`
-	Priority     string    `json:"priority"`
-	PublishedAt  time.Time `json:"published_at"`
-	Source       string    `json:"source"`
-	Version      string    `json:"version"`
-}
-
-type Method struct {
-	Method string `json:"method"`
-	Value  string `json:"value"`
-}
-
 type AlertMonitor struct {
 	Redis         *redis.Client
 	Elasticsearch *elasticsearch.Client
+	SSE           *serversentevents.SSEAlertService
 }
 
-func NewAlertMonitor(redis *redis.Client, elasticsearch *elasticsearch.Client) *AlertMonitor {
+func NewAlertMonitor(redis *redis.Client, elasticsearch *elasticsearch.Client, sse *serversentevents.SSEAlertService) *AlertMonitor {
 	a := AlertMonitor{
 		Redis:         redis,
 		Elasticsearch: elasticsearch,
+		SSE:           sse,
 	}
 	return &a
 }
@@ -81,11 +61,16 @@ func (am *AlertMonitor) StartMonitoring(ctx context.Context) error {
 // processAlert parses the alert message and saves it to Elasticsearch
 func (am *AlertMonitor) processAlert(ctx context.Context, payload string) error {
 	// Parse the JSON message
-	var alert AlertMessage
+	var alert dto.AlertMessage
 	if err := json.Unmarshal([]byte(payload), &alert); err != nil {
 		return fmt.Errorf("failed to parse alert message: %w", err)
 	}
-
+	if client, ok := am.SSE.GetAlertClientChannel(alert.ProjectName); ok {
+		log.Printf("Client channel found for service: %v", client)
+	}
+	if len(am.SSE.Clients) > 0 {
+		am.SSE.BroadcastAlerts(alert.ProjectName, &payload)
+	}
 	indexName := fmt.Sprintf("alerts-%s-%s", strings.ToLower(strings.ReplaceAll(alert.ProjectName, " ", "_")), alert.Timestamp.Format("2006-01-02"))
 
 	for _, method := range alert.Methods {
@@ -105,7 +90,7 @@ func (am *AlertMonitor) processAlert(ctx context.Context, payload string) error 
 }
 
 // saveToElasticsearch indexes the alert document in Elasticsearch
-func (am *AlertMonitor) saveToElasticsearch(ctx context.Context, indexName string, alert AlertMessage) error {
+func (am *AlertMonitor) saveToElasticsearch(ctx context.Context, indexName string, alert dto.AlertMessage) error {
 	// Convert alert to JSON
 	alertJSON, err := json.Marshal(alert)
 	if err != nil {
@@ -132,7 +117,7 @@ func (am *AlertMonitor) saveToElasticsearch(ctx context.Context, indexName strin
 	return nil
 }
 
-func formatAlertMessage(alert AlertMessage) (subject, message string) {
+func formatAlertMessage(alert dto.AlertMessage) (subject, message string) {
 	// Common subject format
 	subject = fmt.Sprintf("[%s Alert] %s in %s", strings.ToUpper(alert.Priority), alert.MetricName, alert.ProjectName)
 

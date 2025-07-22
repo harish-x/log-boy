@@ -250,17 +250,6 @@ const AlertManagement = () => {
   console.log(alertForm);
   return (
     <div className=" p-6 space-y-6 border border-primary/[0.20] px-2 w-[98%] mx-auto rounded-2xl">
-      <div className="relative mb-8">
-        <div className="relative flex items-center justify-center space-x-4 py-8">
-          <div className="relative">
-            <Bell className="relative h-12 w-12 text-white" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-primary">Alert Management</h1>
-            <p className="text-lg text-muted-foreground mt-2">Intelligent monitoring for your infrastructure</p>
-          </div>
-        </div>
-      </div>
       <Tabs defaultValue="create" className="relative w-full">
         <TabsList className="grid w-full grid-cols-2 backdrop-blur-sm border shadow-lg">
           <TabsTrigger value="create" className="data-[state=active]:bg-primary data-[state=active]:text-white">
@@ -280,10 +269,10 @@ const AlertManagement = () => {
               {/* Rule Type Selection */}
               <div className="space-y-6">
                 <div className="text-center space-y-2">
-                  <Label className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <Label className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent py-1">
                     Choose Your Alert Strategy
                   </Label>
-                  <p className="text-muted-foreground">Select the monitoring rule that best fits your infrastructure needs</p>
+                  <p className="text-muted-foreground mt-2">Select the monitoring rule that best fits your infrastructure needs</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

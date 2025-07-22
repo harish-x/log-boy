@@ -114,7 +114,7 @@ func NewDefaultMetricsProcessor(es *elasticsearch.Client, m *serversentevents.SS
 	return &DefaultMetricsProcessor{
 		es:             es,
 		serviceBatches: make(map[string]*ServiceBatch),
-		batchSize:      100,
+		batchSize:      200,
 		flushInterval:  10 * time.Second,
 		metricsSSE:     m,
 	}

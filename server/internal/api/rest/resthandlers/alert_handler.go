@@ -1,21 +1,27 @@
 package resthandlers
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"server/internal/api/dto"
 	"server/internal/models"
 	"server/internal/repository"
 	"server/internal/services"
+	serversentevents "server/internal/services/server_sent_events"
+	"server/pkg"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type AlertHandler struct {
 	svc *services.AlertServices
+	sse *serversentevents.SSEAlertService
 }
 
-func SetupAlertRoutes(r *RestHandler) {
+func SetupAlertRoutes(r *RestHandler, a *serversentevents.SSEAlertService) {
 	app := r.App
 
 	api := app.Group("/api/v1/alerts")
@@ -24,16 +30,32 @@ func SetupAlertRoutes(r *RestHandler) {
 	}
 	h := AlertHandler{
 		svc: &svc,
+		sse: a,
 	}
 
 	api.Post("/email", h.CreateAlertEmail)
 	api.Patch("/email/verify", h.VerifyEmail)
 	api.Post("/new", h.CreateAlert)
 	api.Get("/email/:project", h.GetVerifiedEmail)
-	api.Get("/:project/all", h.GetAlerts)
+	api.Get("/:project/all", h.GetAlertRules)
+	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), h.SendAlert)
 	//api.Get("/:project/:id", h.GetAlert)
 	//api.Put("/:project/:id", h.UpdateAlert)
 	//api.Delete("/:project/:id", h.DeleteAlert)
+	api.Get("/:project/old_alerts", h.GetAlerts)
+}
+
+func (a *AlertHandler) GetAlertRules(ctx *fiber.Ctx) error {
+	project := ctx.Params("project")
+	if project == "" {
+		return ErrorMessage(ctx, fiber.StatusBadRequest, "project name is required")
+	}
+	alerts, err := a.svc.GetAlertRules(project)
+	if err != nil {
+		return ErrorMessage(ctx, fiber.StatusInternalServerError, "Internal server error")
+	}
+
+	return SuccessResponse(ctx, fiber.StatusOK, "alerts retrieved successfully", alerts)
 }
 
 func (a *AlertHandler) GetAlerts(ctx *fiber.Ctx) error {
@@ -42,15 +64,12 @@ func (a *AlertHandler) GetAlerts(ctx *fiber.Ctx) error {
 		return ErrorMessage(ctx, fiber.StatusBadRequest, "project name is required")
 	}
 	alerts, err := a.svc.GetAlerts(project)
+
 	if err != nil {
 		return ErrorMessage(ctx, fiber.StatusInternalServerError, "Internal server error")
 	}
-
 	return SuccessResponse(ctx, fiber.StatusOK, "alerts retrieved successfully", alerts)
-}
 
-func (a *AlertHandler) GetAlert(ctx *fiber.Ctx) error {
-	return nil
 }
 
 func (a *AlertHandler) CreateAlert(ctx *fiber.Ctx) error {
@@ -170,6 +189,126 @@ func (a *AlertHandler) GetVerifiedEmail(ctx *fiber.Ctx) error {
 
 	return SuccessResponse(ctx, fiber.StatusOK, "email retrieved successfully", v)
 
+}
+
+func (a *AlertHandler) SendAlert(c *fiber.Ctx) error {
+	project := c.Params("project")
+	if project == "" {
+		return ErrorMessage(c, fiber.StatusBadRequest, "Project name is required")
+	}
+
+	projectExists, err := a.svc.CheckProjectExists(project)
+	if err != nil {
+		return ErrorMessage(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if !projectExists {
+		return ErrorMessage(c, fiber.StatusNotFound, "Project not found")
+	}
+	user := c.Locals("user").(*pkg.UserClaims)
+	clientID := user.UniqueName
+
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Access-Control-Allow-Origin", "*")
+	c.Set("Transfer-Encoding", "chunked")
+
+	// Register client
+	a.sse.RegisterAlertClient(clientID, project)
+
+	// Get a client channel
+	clientChan, ok := a.sse.GetAlertClientChannel(clientID)
+	if !ok {
+		log.Printf("No client channel found for ClientID: %s", clientID)
+		a.sse.UnregisterAlertClient(clientID)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get client channel"})
+	}
+
+	// Set up the streaming response
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		defer func() {
+			log.Printf("Exiting stream writer for client: %s", clientID)
+			a.sse.UnregisterAlertClient(clientID)
+		}()
+
+		// Send initial connection confirmation
+		_, err := w.WriteString("data: connected\n\n")
+		if err != nil {
+			log.Printf("Error writing connection confirmation: %v", err)
+			return
+		}
+		err = w.Flush()
+		if err != nil {
+			return
+		}
+
+		heartbeatTicker := time.NewTicker(30 * time.Second)
+		defer heartbeatTicker.Stop()
+
+		done := make(chan struct{})
+
+		// Heartbeat goroutine
+		go func() {
+			for {
+				select {
+				case <-heartbeatTicker.C:
+					// Send heartbeat
+					_, err := w.WriteString("data: {\"type\":\"heartbeat\"}\n\n")
+					if err != nil {
+						log.Printf("Error writing heartbeat to client %s: %v", clientID, err)
+						close(done)
+						return
+					}
+					if err := w.Flush(); err != nil {
+						log.Printf("Error flushing heartbeat for client %s: %v", clientID, err)
+						close(done)
+						return
+					}
+					// Update client activity
+					a.sse.UpdateAlertClientActivity(clientID)
+				case <-done:
+					return
+				}
+			}
+		}()
+
+		// Main message loop
+		for {
+			select {
+			case metrics, ok := <-clientChan:
+				if !ok {
+					log.Printf("Client channel closed for %s", clientID)
+					return
+				}
+
+				data, err := json.Marshal(metrics)
+				if err != nil {
+					log.Printf("Failed to marshal log entry: %v", err)
+					continue
+				}
+
+				_, err = w.WriteString("data: " + string(data) + "\n\n")
+				if err != nil {
+					log.Printf("Error writing to client %s: %v", clientID, err)
+					return
+				}
+
+				if err = w.Flush(); err != nil {
+					log.Printf("Error flushing buffer for client %s: %v", clientID, err)
+					return
+				}
+
+				// Update client activity
+				a.sse.UpdateAlertClientActivity(clientID)
+
+			case <-done:
+				return
+
+			}
+		}
+	})
+
+	return nil
 }
 
 func (a *AlertHandler) UpdateAlert(ctx *fiber.Ctx) error {
