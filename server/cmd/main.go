@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}
 	brokers := strings.Split(cfg.KafkaBrokers, ",")
-	redisClient, err := config.NewRedis(cfg.RedisDNS, cfg.RedisPAssword, 0)
+	redisClient, err := config.NewRedis(cfg.RedisDNS, cfg.RedisPassword, 0)
 	if err != nil {
 		log.Fatalf("Failed to load env variables: %v", err)
 	}

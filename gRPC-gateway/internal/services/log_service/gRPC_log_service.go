@@ -42,9 +42,6 @@ func (s *LogServiceServer) ReceiveLogsStream(stream grpc.ClientStreamingServer[p
 			return status.Errorf(codes.Unknown, "failed to receive log: %v", err)
 		}
 
-		log.Printf("Received log: Service=%s, Level=%s, Message=%s\n",
-			logMessage.GetServiceName(), logMessage.GetLevel(), logMessage.GetMessage())
-
 		topic := logMessage.GetServiceName()
 		if topic == "" {
 			log.Println("Received log with empty serviceName, skipping")

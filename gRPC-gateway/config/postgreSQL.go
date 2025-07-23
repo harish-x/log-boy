@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"server/internal/models"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -33,14 +32,8 @@ func NewPostgres(addr string, maxOpenConns int, maxIdleConns int, maxConnLifetim
 	if err := pg.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping DB: %w", err)
 	}
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";").Error; err != nil {
-		return nil, fmt.Errorf("failed to create uuid extension: %w", err)
-	}
+	
 
-	err = db.AutoMigrate(&models.Project{}, &models.Alert{}, &models.AlertMethods{}, &models.VerifiedEmails{}, &models.MailVerify{}, &models.KeyStore{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to ping DB: %w", err)
-	}
 	log.Print("postgres connection established")
 	return db, nil
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type projectPSQL struct {
@@ -168,4 +169,12 @@ func (l *projectPSQL) GetRecentProjects(projectNames string) ([]*models.Project,
 		return nil, err
 	}
 	return projects, nil
+}
+
+// UpsertKeyStore saves a new KeyStore record in the database.
+func (l *projectPSQL) UpsertKeyStore(keyStore *models.KeyStore) error {
+	return l.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "timestamp"}),
+	}).Create(keyStore).Error
 }

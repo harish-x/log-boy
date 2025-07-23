@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"gRPC-gateway/config"
+	"gRPC-gateway/internal/services"
 	protogen "gRPC-gateway/internal/services/genproto/logs"
 	metricProtogen "gRPC-gateway/internal/services/genproto/metrics"
 	"gRPC-gateway/internal/services/log_service"
@@ -25,7 +26,14 @@ func StartNewgRPCServer(ctx context.Context, cfg *config.AppConfig, kfk *Kfk) er
 	if err != nil {
 		return err
 	}
-	s := grpc.NewServer()
+	pg, err := config.NewPostgres(cfg.PostgresDb, 10, 10, "5m")
+	
+	if err != nil {
+		return err
+	}
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(services.NewAuthStreamInterceptor(pg,cfg.GRPCSecret)),
+	)
 
 	log.Println("Server started on port", cfg.ServerPort)
 

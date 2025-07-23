@@ -23,7 +23,8 @@ type AppConfig struct {
 	AzureCommunicationDNS   string
 	AzureEmailSenderAddress string
 	RedisDNS                string
-	RedisPAssword           string
+	RedisPassword           string
+	GRPCSecret              string
 }
 
 func SetupEnv() (AppConfig, error) {
@@ -48,7 +49,8 @@ func SetupEnv() (AppConfig, error) {
 		ElasticSearchToken:      os.Getenv("ELASTIC_SEARCH_TOKEN"),
 		ElasticsearchCloudID:    os.Getenv("ELASTICSEARCH_CLOUD_ID"),
 		RedisDNS:                os.Getenv("REDIS_DNS"),
-		RedisPAssword:           os.Getenv("REDIS_PASSWORD"),
+		RedisPassword:           os.Getenv("REDIS_PASSWORD"),
+		GRPCSecret:              os.Getenv("GRPC_SECRET"),
 	}
 	return config, nil
 }

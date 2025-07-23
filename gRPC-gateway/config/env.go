@@ -11,6 +11,8 @@ type AppConfig struct {
 	KafkaHost         string
 	PartitionStrategy string
 	SchemaRegistryURL string
+	PostgresDb        string
+	GRPCSecret        string
 }
 
 func SetupEnv() (*AppConfig, error) {
@@ -24,6 +26,8 @@ func SetupEnv() (*AppConfig, error) {
 		KafkaHost:         os.Getenv("KAFKA_HOST"),
 		PartitionStrategy: os.Getenv("PARTITION_STRATEGY"),
 		SchemaRegistryURL: os.Getenv("SCHEMA_REGISTRY_URL"),
+		PostgresDb:        os.Getenv("POSTGRES_DB"),
+		GRPCSecret:        os.Getenv("GRPC_SECRET"),
 	}
 	return &config, nil
 }

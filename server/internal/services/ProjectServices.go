@@ -5,11 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"regexp"
 	"server/config"
 	"server/internal/models"
 	"server/internal/repository"
+	"time"
+
+	"github.com/hashicorp/go-uuid"
 )
 
 type ProjectServices struct {
@@ -87,10 +91,25 @@ func (p *ProjectServices) DeleteProject(name string) error {
 }
 
 // GenerateProjectKey generates a unique HMAC-based project key using the project name and a secret from the configuration.
-func (p *ProjectServices) GenerateProjectKey(projectName string) string {
-	h := hmac.New(sha256.New, []byte("secret"))
-	h.Write([]byte(projectName))
-	return hex.EncodeToString(h.Sum(nil))
+func (p *ProjectServices) GenerateProjectKey(projectName string) (string, error) {
+	h := hmac.New(sha256.New, []byte(p.Config.GRPCSecret))
+	generatedUUID, err := uuid.GenerateUUID()
+	if err != nil {
+		return "", err
+	}
+	timestamp := time.Now().Unix()
+	payload := fmt.Sprintf("%s.%s.%d", projectName, generatedUUID, timestamp)
+	key := models.KeyStore{
+		Key:       projectName,
+		Value:     generatedUUID,
+		Timestamp: timestamp,
+	}
+	err = p.Repo.UpsertKeyStore(&key)
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(payload))
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // GetProjectsCount retrieves the total count of projects for pagination in the repository and returns it along with an error if any occurs.

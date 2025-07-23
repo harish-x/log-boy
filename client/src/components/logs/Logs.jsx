@@ -39,9 +39,7 @@ const Logs = () => {
   const [getMinMaxDate, { data: minMaxDate, isLoading: isLoadingDate, isError: isErrorDate, isFetching: isFetchingDate }] =
     useLazyGetMinMaxDateQuery();
 
-  {
-    /*------------pagination------------*/
-  }
+  
   const total = logsData?.data.total || 0; // total number of logs
   const totalPages = Math.ceil(total / limit); // total number of pages
 

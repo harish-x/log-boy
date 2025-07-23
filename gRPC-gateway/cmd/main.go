@@ -20,6 +20,9 @@ func main() {
 	}
 
 	producer, protoSerializer, err := config.SetupKafka(cfg)
+	if err != nil {
+		errChan <- err
+	}
 
 	go func() {
 		if err := server.StartNewgRPCServer(ctx, cfg, &server.Kfk{Producer: producer, ProtoSerializer: protoSerializer}); err != nil {

@@ -58,6 +58,35 @@ func (ktm *KafkaTopicManager) CreateProjectTopic(projectName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create topic %s: %w", topicName, err)
 	}
+	// create topics for metrics
+	topicName = fmt.Sprintf("metrics-%s", projectName)
+
+	// Check if a topic already exists
+	exists, err = ktm.topicExists(topicName)
+	if err != nil {
+		return fmt.Errorf("failed to check if topic exists: %w", err)
+	}
+
+	if exists {
+		log.Printf("Topic %s already exists", topicName)
+		return nil
+	}
+
+	// Create a topic
+	topicDetail = &sarama.TopicDetail{
+		NumPartitions:     2,
+		ReplicationFactor: 1,
+		ConfigEntries: map[string]*string{
+			"cleanup.policy": stringPtr("delete"),
+			"retention.ms":   stringPtr("604800000"), // 7 days
+			"segment.ms":     stringPtr("86400000"),  // 1 day
+		},
+	}
+
+	err = ktm.admin.CreateTopic(topicName, topicDetail, false)
+	if err != nil {
+		return fmt.Errorf("failed to create topic %s: %w", topicName, err)
+	}
 
 	log.Printf("Successfully created topic: %s", topicName)
 	return nil

@@ -2,6 +2,7 @@ package resthandlers
 
 import (
 	"errors"
+	"log"
 	"server/internal/api/dto"
 	"server/internal/models"
 	"server/internal/repository"
@@ -54,16 +55,21 @@ func (h *ProjectHandler) CreateProject(c *fiber.Ctx) error {
 	existingProject, err := h.svc.GetProjectByName(project.Name)
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return InternalError(c, err)
+		return InternalError(c, errors.New("error while checking project"))
 	}
-
+	log.Print("line: 60", err)
 	if existingProject != nil {
 		return ErrorMessage(c, fiber.StatusConflict, "project with this name already exists")
 	}
 	createdProject, err := h.svc.CreateProject(&project)
-	key := h.svc.GenerateProjectKey(project.Name)
+
 	if err != nil {
-		return InternalError(c, err)
+		return InternalError(c, errors.New("error while creating project"))
+	}
+	key, err := h.svc.GenerateProjectKey(project.Name)
+	log.Print("line: 70", err)
+	if err != nil {
+		return InternalError(c, errors.New("error while generating project key"))
 	}
 	response := dto.CreateProjectDto{
 		Name: project.Name,
@@ -198,7 +204,10 @@ func (h *ProjectHandler) GenerateProjectKey(c *fiber.Ctx) error {
 	if projectName == "" {
 		return BadRequestError(c, "Project name is required")
 	}
-	key := h.svc.GenerateProjectKey(projectName)
+	key, err := h.svc.GenerateProjectKey(projectName)
+	if err != nil {
+		return InternalError(c, err)
+	}
 	return SuccessResponse(c, fiber.StatusOK, "Project key generated successfully", fiber.Map{"key": key})
 }
 

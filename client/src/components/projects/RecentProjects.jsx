@@ -1,29 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import {
-  useLazyGetRecentProjectsQuery,
-  useLazyGetProjectsQuery,
-} from "@/services/ProjectService";
+import { useLazyGetRecentProjectsQuery, useLazyGetProjectsQuery } from "@/services/ProjectService";
 
 const RecentProjects = () => {
   const navigate = useNavigate();
   const [displayProjects, setDisplayProjects] = useState([]);
-  const [projectsToShow, setProjectsToShow] = useState(
-    getProjectByScreenSize()
-  );
+  const [projectsToShow, setProjectsToShow] = useState(getProjectByScreenSize());
 
   // Function to handle project click
   const handleProjectClick = (projectName = null) => {
     if (projectName) {
-      navigate(`project/${projectName}`);
+      navigate(`/dashboard/project/${projectName}`);
     } else {
       navigate(`create`);
     }
   };
 
-  const [getRecentProjects, { data: recentProjectsData }] =
-    useLazyGetRecentProjectsQuery(); // Get recent projects
+  const [getRecentProjects, { data: recentProjectsData }] = useLazyGetRecentProjectsQuery(); // Get recent projects
   const [getProjects, { data: allProjectsData }] = useLazyGetProjectsQuery(); // Get all projects
 
   const recentProjects = useSelector(
@@ -88,7 +82,6 @@ const RecentProjects = () => {
     }
   }, [getRecentProjects, recentProjects]);
 
-
   // Fetch all projects if the number of projects to display is greater than the number of recent projects
   useEffect(() => {
     const updateDisplayProjects = async () => {
@@ -106,15 +99,9 @@ const RecentProjects = () => {
 
         if (result.data?.data && Array.isArray(result.data.data.projects)) {
           const existingProjectIds = projectsToDisplay.map((p) => p.id);
-          const filteredAdditionalProjects = result.data.data.projects.filter(
-            (project) => !existingProjectIds.includes(project.id)
-          );
+          const filteredAdditionalProjects = result.data.data.projects.filter((project) => !existingProjectIds.includes(project.id));
 
-         
-          projectsToDisplay = [
-            ...projectsToDisplay,
-            ...filteredAdditionalProjects.slice(0, neededProjects),
-          ];
+          projectsToDisplay = [...projectsToDisplay, ...filteredAdditionalProjects.slice(0, neededProjects)];
         }
       }
 
@@ -132,9 +119,7 @@ const RecentProjects = () => {
         onClick={() => handleProjectClick(project.name)}
       >
         <p className="font-semibold text-primary text-lg">{project.name}</p>
-        <p className="text-sm mt-2 text-muted-foreground">
-          {project.description}
-        </p>
+        <p className="text-sm mt-2 text-muted-foreground">{project.description}</p>
       </div>
     );
   };
@@ -147,28 +132,13 @@ const RecentProjects = () => {
           onClick={() => handleProjectClick()}
         >
           <div className="flex justify-center items-center">
-            <svg
-              width="49"
-              height="49"
-              viewBox="0 0 49 49"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M24.497.668v47.667M.664 24.5h47.667"
-                stroke="currentColor"
-                className="stroke-primary"
-                strokeWidth="2"
-              ></path>
+            <svg width="49" height="49" viewBox="0 0 49 49" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M24.497.668v47.667M.664 24.5h47.667" stroke="currentColor" className="stroke-primary" strokeWidth="2"></path>
             </svg>
           </div>
-          <p className="mt-5 font-semibold text-center self-baseline text-primary">
-            Create New Project
-          </p>
+          <p className="mt-5 font-semibold text-center self-baseline text-primary">Create New Project</p>
         </div>
-        {displayProjects.map((project, index) =>
-          renderProjectCard(project, index)
-        )}
+        {displayProjects.map((project, index) => renderProjectCard(project, index))}
       </div>
     </div>
   );

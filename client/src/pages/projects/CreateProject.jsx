@@ -9,7 +9,7 @@ const CreateProject = () => {
   const [projectName, setProjectName] = React.useState("");
   const [projectDescription, setProjectDescription] = React.useState("");
   const [logsRetentionPeriod, setLogsRetentionPeriod] = React.useState("");
-  const [created, setCreated] = React.useState(false);
+  const [created, setCreated] = React.useState(true);
 
   const [nameError, setNameError] = React.useState("");
 
@@ -79,7 +79,7 @@ const CreateProject = () => {
   };
 
   return (
-    <div>
+    <div className="w-[98%] mx-auto rounded-2xl border border-primary/[0.10] h-[calc(100vh-5rem)] bg-background">
       {!created ? ( // before project created
         <div className="flex flex-col items-center justify-center h-full">
           __
@@ -117,21 +117,6 @@ const CreateProject = () => {
               ></textarea>
             </div>
             <div className="mb-4">
-              {/* <label className="block text-sm font-medium text-primary mb-2" htmlFor="project-type">
-                Logs Retention Period
-              </label>
-              <select
-                id="project-type"
-                className="w-full px-3 py-2 border border-primary/[0.20] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                value={logsRetentionPeriod}
-                onChange={(e) => setLogsRetentionPeriod(e.target.value)}
-              >
-                {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i} value={`${i + 1} MONTHS`}>
-                    {i + 1} month{i + 1 > 1 ? "s" : ""}
-                  </option>
-                ))}
-              </select> */}
               <Select value={logsRetentionPeriod} onValueChange={setLogsRetentionPeriod}>
                 <SelectTrigger className="w-full px-3 py-2 border border-primary/[0.20] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                   <SelectValue placeholder="Select logs retention period" />
@@ -160,7 +145,7 @@ const CreateProject = () => {
         <div className="flex flex-col items-center justify-center h-full">
           <div className="flex items-center justify-between w-full max-w-xl mb-6">
             <button
-              className=" mb-4 text-primary hover:text-primary/[0.80] transition duration-200 cursor-pointer rounded-full bg-accent p-2 flex items-center"
+              className=" mb-4 text-primary hover:text-primary/[0.80] transition duration-200 cursor-pointer rounded-full bg-accent/[0.10] p-2 flex items-center"
               type="button"
               aria-label="Back to create project"
               onClick={() => setCreated(false)}
@@ -170,7 +155,7 @@ const CreateProject = () => {
           </div>
 
           <h2 className="text-xl font-bold text-primary mb-4">Project Details</h2>
-          <p className="text-sm text-primary mb-2">
+          <p className="text-sm text-muted-foreground mb-2">
             Your project has been created successfully! You can now use the following details to access your project.
           </p>
 
@@ -184,14 +169,14 @@ const CreateProject = () => {
             />
             <button
               type="button"
-              className="px-3 py-3 bg-primary text-accent rounded-r-lg hover:bg-primary/[0.80] transition duration-200 cursor-pointer flex items-center"
+              className="px-3 py-3 bg-primary dark:bg-accent text-accent rounded-r-lg transition duration-200 cursor-pointer flex items-center"
               onClick={() => {
                 navigator.clipboard.writeText(!isLoading && projectResponse?.data?.name); // copy to clipboard
                 setCopiedProjectName(true);
                 setTimeout(() => setCopiedProjectName(false), 1500);
               }}
             >
-              {copiedProjectName ? <ClipboardCheck size={19} color="#22c55e" /> : <Clipboard size={19} />}
+              {copiedProjectName ? <ClipboardCheck size={19} color="#22c55e" /> : <Clipboard color="#fff" size={19} />}
             </button>
           </div>
           <div className="mb-4 w-full max-w-xl flex items-center">
@@ -204,29 +189,29 @@ const CreateProject = () => {
             />
             <button
               type="button"
-              className="px-3 py-3 bg-primary text-accent hover:bg-primary/[0.80] transition duration-200 cursor-pointer"
+              className="px-3 py-3 bg-primary dark:bg-accent text-accent  transition duration-200 cursor-pointer"
               onClick={() => {
                 const input = document.getElementById("project-key");
                 input.type = input.type === "password" ? "text" : "password";
                 input.focus();
               }}
             >
-              <Eye size={19} />
+              <Eye color="#fff" size={19} />
             </button>
             <Separator orientation="vertical" className="border border-primary/[0.10]" />
             <button
               type="button"
-              className="px-3 py-3 bg-primary text-accent rounded-r-lg hover:bg-primary/[0.80] transition duration-200 cursor-pointer flex items-center"
+              className="px-3 py-3 bg-primary dark:bg-accent text-accent rounded-r-lg transition duration-200 cursor-pointer flex items-center"
               onClick={() => {
                 navigator.clipboard.writeText(!isLoading && projectResponse?.data?.key);
                 setCopiedKey(true);
                 setTimeout(() => setCopiedKey(false), 1500);
               }}
             >
-              {copiedKey ? <ClipboardCheck size={19} color="#22c55e" /> : <Clipboard size={19} />}
+              {copiedKey ? <ClipboardCheck size={19} color="#22c55e" /> : <Clipboard size={19} color="#fff" />}
             </button>
           </div>
-          <span className="flex items-center text-sm text-primary">
+          <span className="flex items-center text-sm opacity-70">
             <OctagonAlert className="mr-2" /> This is the only time you will be able to see this information
           </span>
         </div>

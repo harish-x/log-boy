@@ -14,4 +14,5 @@ type ProjectRepo interface {
 	GetProjectsCount() (int64, error)
 	GetLogs(projectName string) ([]*models.Log, error)
 	GetRecentProjects(projectNames string) ([]*models.Project, error)
+	UpsertKeyStore(keyStore *models.KeyStore) error
 }
