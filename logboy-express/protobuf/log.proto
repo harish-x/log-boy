@@ -1,0 +1,33 @@
+syntax = "proto3";
+package logboy;
+
+import "google/protobuf/timestamp.proto";
+service LogService{
+  rpc ReceiveLogsStream(stream Log) returns (Response);
+}
+
+
+message BuildDetails {
+  string nodeVersion = 1;
+  string appVersion = 2;
+}
+
+message Log {
+  string serviceName = 1;
+  BuildDetails buildDetails = 2;
+  string level = 3;
+  string message = 4;
+  string stack = 5;
+  string requestId = 6;
+  string requestUrl = 7;
+  string requestMethod = 8;
+  string userAgent = 9;
+  string remoteIp = 10;
+  string responseStatus = 11;
+  string responseTime = 12;
+  google.protobuf.Timestamp timestamp = 13;
+}
+
+message Response {
+  bool ack = 1;
+}

@@ -1,0 +1,33 @@
+syntax = "proto3";
+package logboy;
+
+
+message MemoryUsage{
+  int64 timestamp = 1;
+  int64 totalMemory =2;
+  int64 freeMemory =3;
+  int64 usedMemory =4;
+  double memoryUsagePercentage =5;
+}
+
+message CoreUsage{
+  int32 core=1;
+  double usage=2;
+}
+message CpuUsage{
+  int64 timestamp=1;
+  double average=2;
+  repeated CoreUsage cores=3;
+}
+
+message Metrics{
+  MemoryUsage memoryUsage = 1;
+  CpuUsage cpuUsage = 2;
+  string serviceName = 3;
+}
+message Res {
+  bool ack = 1;
+}
+service MetricsService{
+  rpc ReceiveMetrics(stream Metrics) returns (Res);
+}
