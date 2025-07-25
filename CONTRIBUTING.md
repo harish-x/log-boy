@@ -1,6 +1,6 @@
 # Contributing to LogBoy
 
-Thank you for your interest in contributing to **LogBoy** – a platform for centralized logging and metrics transport across microservices.
+Thank you for your interest in contributing to **LogBoy** – a platform for centralized logging and metrics transport system.
 
 We welcome community contributions to improve the system, add features, optimize performance, and extend support across multiple languages.
 
@@ -33,6 +33,11 @@ You can contribute by:
    - Optimize gRPC handling and resource consumption.
    - Improve queueing or backpressure handling for high-throughput pipelines.
 
+3. **Alert Integrations**:
+   - Integrate support for alert forwarding to **Microsoft Teams** and **Slack**.
+   - Allow configuration of webhook URLs per project or environment.
+   - Build alert formatting and throttling logic for better usability.
+
 ---
 
 ### gRPC Gateway
@@ -64,6 +69,7 @@ We welcome contributions for:
 2. **Enhancements**:
    - Add batching, retries, or circuit breakers.
    - Improve configuration flexibility.
+   - Add example apps and usage guides.
 
 ---
 
@@ -75,6 +81,7 @@ Interested contributors can:
 - Design and build real-time anomaly detection modules using logs and metrics.
 - Work on pluggable detection algorithms (rule-based, ML-based).
 - Integrate with existing alerting or SIEM systems.
+- Create alerting triggers that feed into Teams/Slack integrations.
 
 If you're interested in this area, open a discussion issue to collaborate on architecture and planning.
 
@@ -88,7 +95,7 @@ If you're interested in this area, open a discussion issue to collaborate on arc
 
 ---
 
-## License & CLA
+## 📄 License & CLA
 
 By contributing to this project, you agree that your contributions will be licensed under the [MIT License](LICENSE). We may require signing a Contributor License Agreement (CLA) for substantial changes.
 
