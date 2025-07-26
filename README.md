@@ -23,8 +23,6 @@ This system consists of multiple interconnected components that work together to
 
 <img width="3111" height="1416" alt="Screenshot from 2025-07-25 22-43-09" src="https://github.com/user-attachments/assets/ac9c95bf-5a5b-40d9-bda3-05bf0b65eadd" />
 
-## Database Architecture
-
 
 ### Primary Databases
 
@@ -88,14 +86,23 @@ Whether you're a 3-person startup or a growing enterprise, deploy once and scale
 ### Multi-Tenant Architecture
 
 -   **Project Management**: Users can create and manage unlimited projects on a single platform
+
 -   **Isolated Data**: Each project maintains separate log streams and configurations
 -   **Role-Based Access**: Granular permissions and access control per project
 
 ### Real-Time Monitoring
 
--   **Live Log Streaming**: Real-time log and metric visualization
+####  **Live Log Streaming**: Real-time log
+<img width="1920" height="1080" alt="Screenshot 2025-07-26 101131" src="https://github.com/user-attachments/assets/67252d05-e224-43db-9174-327a44b4180d" />
+
+#### **Live Metrics Streaming**: Real-time Monitoring
+
+
+https://github.com/user-attachments/assets/7f3af203-b537-49a4-ac66-e1ce2de4e976
+
+
 ####  **Historical Analysis**: Query logs from specific date/time ranges
-<img width="1920" height="1032" alt="Screenshot 2025-07-26 093821" src="https://github.com/user-attachments/assets/0bedbfca-ec75-4972-b85c-c1fad2d534da" />
+<img width="1920" height="955" alt="Screenshot 2025-07-26 093821" src="https://github.com/user-attachments/assets/63fa8544-aa71-4f4f-814c-202b3537faa7" />
 
 #### **Backup Data Access**: Seamless access to archived data via Synapse integration
   <img width="1366" height="768" alt="Screenshot 2025-07-26 100856" src="https://github.com/user-attachments/assets/6c827db5-3618-44b4-80b6-51dc3c2fcd28" />
@@ -103,11 +110,12 @@ Whether you're a 3-person startup or a growing enterprise, deploy once and scale
 
 ### Advanced Alerting
 
--   **Custom Alert Rules**: Flexible rule engine for defining alert conditions
-  <img width="1920" height="1080" alt="Screenshot 2025-07-26 125930" src="https://github.com/user-attachments/assets/f31923c8-393b-4bbd-823b-3ae0e313b776" />
+####  **Custom Alert Rules**: Flexible rule engine for defining alert conditions
 
--   **Smart Deduplication**: Redis-based alert state management prevents spam
--   **Multiple Channels**: Support for webhooks, email, and in-app notifications
+<img width="1920" height="1080" alt="Screenshot 2025-07-26 140608" src="https://github.com/user-attachments/assets/3116ffaa-a2b7-4c6f-be39-352757c9ac88" />
+
+####  **Smart Deduplication**: Redis-based alert state management prevents spam
+#### **Multiple Channels**: Support for webhooks, email, and in-app notifications
 <img width="1366" height="768" alt="Screenshot 2025-07-26 100528" src="https://github.com/user-attachments/assets/01933055-7437-4a6a-bb23-b5d3ba5c14ad" />
 
 ### High Performance & Scalability
