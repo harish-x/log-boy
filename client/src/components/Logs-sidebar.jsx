@@ -25,8 +25,8 @@ export function LogsSidebar({ ...props }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="#">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <GalleryVerticalEnd className="size-4" />
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
+                  <img src="/logboy.png" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">LOG BOY</span>
@@ -83,16 +83,7 @@ export function LogsSidebar({ ...props }) {
                 <span className="ml-2 text-base">Alert</span>
               </div>
             </SidebarMenuButton>
-          </Link>
-
-          <Link to={`/dashboard/project/${projectName}/statistics`}>
-            <SidebarMenuButton size="icon" className={"py-2 mt-2 cursor-pointer"} isActive={location.pathname.includes("statistics")}>
-              <div className="flex items-center ">
-                <ChartNoAxesCombined />
-                <span className="ml-2 text-base">Statistics</span>
-              </div>
-            </SidebarMenuButton>
-          </Link>
+          </Link>        
           <Link to={`/dashboard/project/${projectName}/cold_storage`}>
             <SidebarMenuButton size="icon" className={"py-2 mt-2 cursor-pointer"} isActive={location.pathname.includes("cold_storage")}>
               <div className="flex items-center ">

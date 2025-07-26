@@ -18,6 +18,7 @@ import { useGetProjectsQuery } from "@/services/ProjectService";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useMsal } from "@azure/msal-react";
 import { NavUser } from "./projects/nav-user";
+import { Skeleton } from "./ui/skeleton";
 
 export function ProjectSidebar({ ...props }) {
   const { data: projects, isLoading } = useGetProjectsQuery({
@@ -40,8 +41,8 @@ export function ProjectSidebar({ ...props }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="#">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <GalleryVerticalEnd className="size-4" />
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
+                  <img src="/logboy.png" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">LOG BOY</span>
@@ -89,9 +90,14 @@ export function ProjectSidebar({ ...props }) {
                   <SidebarMenuSub>
                     {isLoading ? (
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton>
-                          <div className="bar-loader mx-auto h-3 w-4 p-3 mt-1"></div>
-                        </SidebarMenuSubButton>
+                      
+                          <div className="flex flex-col w-full gap-2 mt-3">
+                            <Skeleton className="h-4 w-full"></Skeleton>
+                            <Skeleton className="h-4 w-full"></Skeleton>
+                            <Skeleton className="h-4 w-full"></Skeleton>
+                            <Skeleton className="h-4 w-full"></Skeleton>
+                          </div>
+                
                       </SidebarMenuSubItem>
                     ) : (
                       <>

@@ -9,7 +9,7 @@ const CreateProject = () => {
   const [projectName, setProjectName] = React.useState("");
   const [projectDescription, setProjectDescription] = React.useState("");
   const [logsRetentionPeriod, setLogsRetentionPeriod] = React.useState("");
-  const [created, setCreated] = React.useState(true);
+  const [created, setCreated] = React.useState(false);
 
   const [nameError, setNameError] = React.useState("");
 

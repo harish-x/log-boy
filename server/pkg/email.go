@@ -36,9 +36,7 @@ const OtpTemplate = `
     </body>
   </html>`
 
-// --- REST API Data Structures ---
 
-// Defines the structure for the JSON payload sent to the Azure API.
 type emailRequestPayload struct {
 	SenderAddress string            `json:"senderAddress"`
 	Content       emailContent      `json:"content"`

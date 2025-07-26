@@ -303,7 +303,7 @@ const LiveWatch = () => {
     <div className="projects-container bg-background px-2 w-[98%] mx-auto rounded-2xl border border-primary/[0.20] h-[calc(100vh-5rem)]">
       <div className="text-2xl font-bold mt-6 ml-4 flex items-center gap-2">
         <Activity className={isConnected ? "text-green-500" : "text-red-500"} />
-        <span>Live Watch {projectName}</span>
+        <span>Live Logs {projectName}</span>
         <span className={`text-sm font-normal ${isConnected ? "text-green-500" : "text-red-500"}`}>{isConnected ? "Connected" : "Disconnected"}</span>
       </div>
       <div className="mt-6">
