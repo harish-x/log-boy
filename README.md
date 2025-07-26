@@ -1,4 +1,5 @@
-# Logboy
+<img width="200" height="200" alt="logboy" src="https://github.com/user-attachments/assets/75730e24-9c3f-432b-9e91-eb771c775cec" />
+
 
 **Open Source All-in-One Logging Solution for Modern Startups**
 
@@ -76,8 +77,8 @@ Traditional logging solutions like ELK Stack, Grafana, and Prometheus require co
 -   **No Vendor Lock-in**: Open source means you're never trapped by licensing or pricing changes
 -   **Community Driven**: Benefit from community contributions and enterprise features without enterprise costs
 
+## Features
 ### From Startup to Scale
-
 Whether you're a 3-person startup or a growing enterprise, deploy once and scale on your infrastructure:
 
 -   **Resource Efficient**: Optimized to run on modest hardware initially, scales with your infrastructure
@@ -93,14 +94,21 @@ Whether you're a 3-person startup or a growing enterprise, deploy once and scale
 ### Real-Time Monitoring
 
 -   **Live Log Streaming**: Real-time log and metric visualization
--   **Historical Analysis**: Query logs from specific date/time ranges
--   **Backup Data Access**: Seamless access to archived data via Synapse integration
+####  **Historical Analysis**: Query logs from specific date/time ranges
+<img width="1920" height="1032" alt="Screenshot 2025-07-26 093821" src="https://github.com/user-attachments/assets/0bedbfca-ec75-4972-b85c-c1fad2d534da" />
+
+#### **Backup Data Access**: Seamless access to archived data via Synapse integration
+  <img width="1366" height="768" alt="Screenshot 2025-07-26 100856" src="https://github.com/user-attachments/assets/6c827db5-3618-44b4-80b6-51dc3c2fcd28" />
+
 
 ### Advanced Alerting
 
 -   **Custom Alert Rules**: Flexible rule engine for defining alert conditions
+  <img width="1920" height="1080" alt="Screenshot 2025-07-26 125930" src="https://github.com/user-attachments/assets/f31923c8-393b-4bbd-823b-3ae0e313b776" />
+
 -   **Smart Deduplication**: Redis-based alert state management prevents spam
 -   **Multiple Channels**: Support for webhooks, email, and in-app notifications
+<img width="1366" height="768" alt="Screenshot 2025-07-26 100528" src="https://github.com/user-attachments/assets/01933055-7437-4a6a-bb23-b5d3ba5c14ad" />
 
 ### High Performance & Scalability
 
