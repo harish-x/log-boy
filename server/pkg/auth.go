@@ -81,7 +81,7 @@ func validateToken(tokenString string, aud string, iss string) (*UserClaims, err
 		return nil, fmt.Errorf("failed to get keys: %w", err)
 	}
 
-	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{}) // parse without validation
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("malformed token: %w", err)
 	}

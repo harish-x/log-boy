@@ -32,9 +32,9 @@ func SetupMetricsHandler(r *RestHandler, l *serversentevents.SSEMetricsService) 
 	api := app.Group("/api/v1/metrics/")
 
 	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), handler.StreamMetrics)
-	api.Get("/:project/cpu", handler.GetCpuUsage)
-	api.Get("/:project/memory", handler.Getmemoryusage)
-	api.Get("/:project/date", handler.GetMetricsMinMaxDates)
+	api.Get("/:project/cpu", pkg.AuthMiddleware(), handler.GetCpuUsage)
+	api.Get("/:project/memory", pkg.AuthMiddleware(), handler.Getmemoryusage)
+	api.Get("/:project/date", pkg.AuthMiddleware(), handler.GetMetricsMinMaxDates)
 
 }
 

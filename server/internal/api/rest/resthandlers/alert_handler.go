@@ -33,16 +33,16 @@ func SetupAlertRoutes(r *RestHandler, a *serversentevents.SSEAlertService) {
 		sse: a,
 	}
 
-	api.Post("/email", h.CreateAlertEmail)
-	api.Patch("/email/verify", h.VerifyEmail)
-	api.Post("/new", h.CreateAlert)
-	api.Get("/email/:project", h.GetVerifiedEmail)
-	api.Get("/:project/all", h.GetAlertRules)
+	api.Post("/email", pkg.AuthMiddleware(), h.CreateAlertEmail)
+	api.Patch("/email/verify", pkg.AuthMiddleware(), h.VerifyEmail)
+	api.Post("/new", pkg.AuthMiddleware(), h.CreateAlert)
+	api.Get("/email/:project", pkg.AuthMiddleware(), h.GetVerifiedEmail)
+	api.Get("/:project/all", pkg.AuthMiddleware(), h.GetAlertRules)
 	api.Get("/:project/stream", pkg.SSEAuthMiddleware(), h.SendAlert)
 	//api.Get("/:project/:id", h.GetAlert)
 	//api.Put("/:project/:id", h.UpdateAlert)
 	//api.Delete("/:project/:id", h.DeleteAlert)
-	api.Get("/:project/old_alerts", h.GetAlerts)
+	api.Get("/:project/old_alerts", pkg.AuthMiddleware(), h.GetAlerts)
 }
 
 func (a *AlertHandler) GetAlertRules(ctx *fiber.Ctx) error {
